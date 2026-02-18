@@ -1,0 +1,898 @@
+{
+    "phase": "Phase 01: Data Discovery & Extraction",
+    "timestamp": "2026-02-18 13:10:33",
+    "tables": {
+        "ventas_diarias": {
+            "structural_integrity": {
+                "contract_fulfilled": true,
+                "additional_columns": [
+                    "id",
+                    "created_at"
+                ],
+                "shape": {
+                    "rows": 2963,
+                    "columns": 12
+                }
+            },
+            "data_quality": {
+                "null_counts": {
+                    "id": 0,
+                    "fecha": 0,
+                    "total_unidades_entregadas": 0,
+                    "unidades_precio_normal": 0,
+                    "unidades_promo_pagadas": 0,
+                    "unidades_promo_bonificadas": 0,
+                    "precio_unitario_full": 0,
+                    "costo_unitario": 0,
+                    "ingresos_totales": 0,
+                    "costo_total": 0,
+                    "utilidad": 0,
+                    "created_at": 0
+                },
+                "duplicate_rows_count": 0,
+                "duplicate_dates_count": 0,
+                "sentinel_counts": {
+                    "id": 0,
+                    "fecha": 0,
+                    "total_unidades_entregadas": 0,
+                    "unidades_precio_normal": 0,
+                    "unidades_promo_pagadas": 0,
+                    "unidades_promo_bonificadas": 0,
+                    "precio_unitario_full": 0,
+                    "costo_unitario": 0,
+                    "ingresos_totales": 0,
+                    "costo_total": 0,
+                    "utilidad": 0,
+                    "created_at": 0
+                },
+                "zero_variance_cols": [],
+                "high_cardinality_cols": [
+                    "fecha"
+                ]
+            },
+            "time_series_health": {
+                "date_range": {
+                    "min": "2018-01-01",
+                    "max": "2026-02-10"
+                },
+                "gaps_detected_count": 0,
+                "has_gaps": false
+            },
+            "statistical_profiling": {
+                "numeric_profile": {
+                    "id": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 1482.0,
+                            "std": 855.4887491954526,
+                            "min": 1.0,
+                            "25%": 741.5,
+                            "50%": 1482.0,
+                            "75%": 2222.5,
+                            "max": 2963.0
+                        },
+                        "outliers": {
+                            "count": 0,
+                            "lower_limit": -1480.0,
+                            "upper_limit": 4444.0
+                        }
+                    },
+                    "total_unidades_entregadas": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 373.8103273709079,
+                            "std": 162.08898511789891,
+                            "min": 74.0,
+                            "25%": 261.0,
+                            "50%": 339.0,
+                            "75%": 469.0,
+                            "max": 1114.0
+                        },
+                        "outliers": {
+                            "count": 69,
+                            "lower_limit": -51.0,
+                            "upper_limit": 781.0
+                        }
+                    },
+                    "unidades_precio_normal": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 334.2706716166048,
+                            "std": 175.64399391967603,
+                            "min": 74.0,
+                            "25%": 201.0,
+                            "50%": 309.0,
+                            "75%": 430.0,
+                            "max": 1114.0
+                        },
+                        "outliers": {
+                            "count": 67,
+                            "lower_limit": -142.5,
+                            "upper_limit": 773.5
+                        }
+                    },
+                    "unidades_promo_pagadas": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 19.769827877151535,
+                            "std": 47.3387701240495,
+                            "min": 0.0,
+                            "25%": 0.0,
+                            "50%": 0.0,
+                            "75%": 0.0,
+                            "max": 275.0
+                        },
+                        "outliers": {
+                            "count": 488,
+                            "lower_limit": 0.0,
+                            "upper_limit": 0.0
+                        }
+                    },
+                    "unidades_promo_bonificadas": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 19.769827877151535,
+                            "std": 47.3387701240495,
+                            "min": 0.0,
+                            "25%": 0.0,
+                            "50%": 0.0,
+                            "75%": 0.0,
+                            "max": 275.0
+                        },
+                        "outliers": {
+                            "count": 488,
+                            "lower_limit": 0.0,
+                            "upper_limit": 0.0
+                        }
+                    },
+                    "precio_unitario_full": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 875.91967600405,
+                            "std": 191.13857023821922,
+                            "min": 600.0,
+                            "25%": 730.0,
+                            "50%": 880.0,
+                            "75%": 1060.0,
+                            "max": 1290.0
+                        },
+                        "outliers": {
+                            "count": 0,
+                            "lower_limit": 235.0,
+                            "upper_limit": 1555.0
+                        }
+                    },
+                    "costo_unitario": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 263.7192035099561,
+                            "std": 49.14809153149776,
+                            "min": 200.0,
+                            "25%": 250.0,
+                            "50%": 250.0,
+                            "75%": 300.0,
+                            "max": 350.0
+                        },
+                        "outliers": {
+                            "count": 0,
+                            "lower_limit": 175.0,
+                            "upper_limit": 375.0
+                        }
+                    },
+                    "ingresos_totales": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 314762.9530880864,
+                            "std": 176693.22024048792,
+                            "min": 59200.0,
+                            "25%": 195360.0,
+                            "50%": 270630.0,
+                            "75%": 391820.0,
+                            "max": 1226790.0
+                        },
+                        "outliers": {
+                            "count": 133,
+                            "lower_limit": -99330.0,
+                            "upper_limit": 686510.0
+                        }
+                    },
+                    "costo_total": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 103366.76139048261,
+                            "std": 53653.43464927962,
+                            "min": 18500.0,
+                            "25%": 66000.0,
+                            "50%": 92600.0,
+                            "75%": 130573.0,
+                            "max": 363650.0
+                        },
+                        "outliers": {
+                            "count": 90,
+                            "lower_limit": -30859.5,
+                            "upper_limit": 227432.5
+                        }
+                    },
+                    "utilidad": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 211396.1916976038,
+                            "std": 128375.25077533843,
+                            "min": 40700.0,
+                            "25%": 119070.0,
+                            "50%": 179340.0,
+                            "75%": 267382.0,
+                            "max": 893940.0
+                        },
+                        "outliers": {
+                            "count": 120,
+                            "lower_limit": -103398.0,
+                            "upper_limit": 489850.0
+                        }
+                    }
+                },
+                "categorical_profile": {
+                    "fecha": {
+                        "2018-01-01": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-02": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-03": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-04": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-05": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-06": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-07": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-08": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-09": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-10": {
+                            "count": 1,
+                            "percentage": 0.03
+                        }
+                    },
+                    "created_at": {
+                        "2026-02-18T15:04:39.448544+00:00": {
+                            "count": 500,
+                            "percentage": 16.87
+                        },
+                        "2026-02-18T15:04:39.820685+00:00": {
+                            "count": 500,
+                            "percentage": 16.87
+                        },
+                        "2026-02-18T15:04:40.230434+00:00": {
+                            "count": 500,
+                            "percentage": 16.87
+                        },
+                        "2026-02-18T15:04:40.635464+00:00": {
+                            "count": 500,
+                            "percentage": 16.87
+                        },
+                        "2026-02-18T15:04:41.047337+00:00": {
+                            "count": 500,
+                            "percentage": 16.87
+                        },
+                        "2026-02-18T15:04:41.440212+00:00": {
+                            "count": 463,
+                            "percentage": 15.63
+                        }
+                    }
+                }
+            }
+        },
+        "macro_economia": {
+            "structural_integrity": {
+                "contract_fulfilled": true,
+                "additional_columns": [
+                    "id",
+                    "created_at"
+                ],
+                "shape": {
+                    "rows": 98,
+                    "columns": 8
+                }
+            },
+            "data_quality": {
+                "null_counts": {
+                    "id": 0,
+                    "fecha": 0,
+                    "ipc_mensual": 0,
+                    "trm_promedio": 0,
+                    "tasa_desempleo": 0,
+                    "costo_insumos_index": 0,
+                    "confianza_consumidor": 0,
+                    "created_at": 0
+                },
+                "duplicate_rows_count": 0,
+                "duplicate_dates_count": 0,
+                "sentinel_counts": {
+                    "id": 0,
+                    "fecha": 0,
+                    "ipc_mensual": 0,
+                    "trm_promedio": 0,
+                    "tasa_desempleo": 0,
+                    "costo_insumos_index": 0,
+                    "confianza_consumidor": 0,
+                    "created_at": 0
+                },
+                "zero_variance_cols": [
+                    "created_at"
+                ],
+                "high_cardinality_cols": [
+                    "fecha"
+                ]
+            },
+            "time_series_health": {
+                "date_range": {
+                    "min": "2018-01-01",
+                    "max": "2026-02-01"
+                },
+                "gaps_detected_count": 2856,
+                "has_gaps": true
+            },
+            "statistical_profiling": {
+                "numeric_profile": {
+                    "id": {
+                        "descriptive": {
+                            "count": 98.0,
+                            "mean": 49.5,
+                            "std": 28.434134416225863,
+                            "min": 1.0,
+                            "25%": 25.25,
+                            "50%": 49.5,
+                            "75%": 73.75,
+                            "max": 98.0
+                        },
+                        "outliers": {
+                            "count": 0,
+                            "lower_limit": -47.5,
+                            "upper_limit": 146.5
+                        }
+                    },
+                    "ipc_mensual": {
+                        "descriptive": {
+                            "count": 98.0,
+                            "mean": 0.6204469387755102,
+                            "std": 0.31729371160412556,
+                            "min": 0.304,
+                            "25%": 0.39694999999999997,
+                            "50%": 0.4913,
+                            "75%": 0.5918,
+                            "max": 1.2927
+                        },
+                        "outliers": {
+                            "count": 24,
+                            "lower_limit": 0.10467499999999991,
+                            "upper_limit": 0.884075
+                        }
+                    },
+                    "trm_promedio": {
+                        "descriptive": {
+                            "count": 98.0,
+                            "mean": 3715.8757142857144,
+                            "std": 531.2161335563101,
+                            "min": 2987.7,
+                            "25%": 3289.2599999999998,
+                            "50%": 3581.995,
+                            "75%": 4356.4425,
+                            "max": 4665.93
+                        },
+                        "outliers": {
+                            "count": 0,
+                            "lower_limit": 1688.4862499999992,
+                            "upper_limit": 5957.21625
+                        }
+                    },
+                    "tasa_desempleo": {
+                        "descriptive": {
+                            "count": 98.0,
+                            "mean": 11.668061224489795,
+                            "std": 2.4544895360972423,
+                            "min": 10.0,
+                            "25%": 10.2625,
+                            "50%": 11.36,
+                            "75%": 11.524999999999999,
+                            "max": 19.5
+                        },
+                        "outliers": {
+                            "count": 9,
+                            "lower_limit": 8.36875,
+                            "upper_limit": 13.418749999999998
+                        }
+                    },
+                    "costo_insumos_index": {
+                        "descriptive": {
+                            "count": 98.0,
+                            "mean": 150.93673469387755,
+                            "std": 34.024602765522005,
+                            "min": 99.37,
+                            "25%": 121.57499999999999,
+                            "50%": 146.52499999999998,
+                            "75%": 178.8225,
+                            "max": 216.7
+                        },
+                        "outliers": {
+                            "count": 0,
+                            "lower_limit": 35.703749999999985,
+                            "upper_limit": 264.69375
+                        }
+                    },
+                    "confianza_consumidor": {
+                        "descriptive": {
+                            "count": 98.0,
+                            "mean": 0.6476530612244898,
+                            "std": 15.197334533046261,
+                            "min": -41.28,
+                            "25%": 2.04,
+                            "50%": 6.1,
+                            "75%": 8.545,
+                            "max": 12.16
+                        },
+                        "outliers": {
+                            "count": 12,
+                            "lower_limit": -7.7175,
+                            "upper_limit": 18.302500000000002
+                        }
+                    }
+                },
+                "categorical_profile": {
+                    "fecha": {
+                        "2018-01-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-02-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-03-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-04-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-05-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-06-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-07-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-08-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-09-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        },
+                        "2018-10-01": {
+                            "count": 1,
+                            "percentage": 1.02
+                        }
+                    },
+                    "created_at": {
+                        "2026-02-18T15:08:44.651856+00:00": {
+                            "count": 98,
+                            "percentage": 100.0
+                        }
+                    }
+                }
+            }
+        },
+        "promocion_dia": {
+            "structural_integrity": {
+                "contract_fulfilled": true,
+                "additional_columns": [
+                    "id",
+                    "created_at"
+                ],
+                "shape": {
+                    "rows": 2963,
+                    "columns": 4
+                }
+            },
+            "data_quality": {
+                "null_counts": {
+                    "id": 0,
+                    "fecha": 0,
+                    "es_promo": 0,
+                    "created_at": 0
+                },
+                "duplicate_rows_count": 0,
+                "duplicate_dates_count": 0,
+                "sentinel_counts": {
+                    "id": 0,
+                    "fecha": 0,
+                    "es_promo": 0,
+                    "created_at": 0
+                },
+                "zero_variance_cols": [],
+                "high_cardinality_cols": [
+                    "fecha"
+                ]
+            },
+            "time_series_health": {
+                "date_range": {
+                    "min": "2018-01-01",
+                    "max": "2026-02-10"
+                },
+                "gaps_detected_count": 0,
+                "has_gaps": false
+            },
+            "statistical_profiling": {
+                "numeric_profile": {
+                    "id": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 1482.0,
+                            "std": 855.4887491954526,
+                            "min": 1.0,
+                            "25%": 741.5,
+                            "50%": 1482.0,
+                            "75%": 2222.5,
+                            "max": 2963.0
+                        },
+                        "outliers": {
+                            "count": 0,
+                            "lower_limit": -1480.0,
+                            "upper_limit": 4444.0
+                        }
+                    },
+                    "es_promo": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 0.16469794127573406,
+                            "std": 0.37097031584594364,
+                            "min": 0.0,
+                            "25%": 0.0,
+                            "50%": 0.0,
+                            "75%": 0.0,
+                            "max": 1.0
+                        },
+                        "outliers": {
+                            "count": 488,
+                            "lower_limit": 0.0,
+                            "upper_limit": 0.0
+                        }
+                    }
+                },
+                "categorical_profile": {
+                    "fecha": {
+                        "2018-01-01": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-02": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-03": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-04": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-05": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-06": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-07": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-08": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-09": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-10": {
+                            "count": 1,
+                            "percentage": 0.03
+                        }
+                    },
+                    "created_at": {
+                        "2026-02-18T15:08:10.935239+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:11.461607+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:11.975975+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:12.591297+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:13.092856+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:13.605425+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:14.122128+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:14.620231+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:15.121097+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:15.65721+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        }
+                    }
+                }
+            }
+        },
+        "redes_sociales": {
+            "structural_integrity": {
+                "contract_fulfilled": true,
+                "additional_columns": [
+                    "id",
+                    "created_at"
+                ],
+                "shape": {
+                    "rows": 2963,
+                    "columns": 7
+                }
+            },
+            "data_quality": {
+                "null_counts": {
+                    "id": 0,
+                    "fecha": 0,
+                    "campaña": 0,
+                    "inversion_facebook": 0,
+                    "inversion_instagram": 0,
+                    "inversion_total_diaria": 0,
+                    "created_at": 0
+                },
+                "duplicate_rows_count": 0,
+                "duplicate_dates_count": 0,
+                "sentinel_counts": {
+                    "id": 0,
+                    "fecha": 0,
+                    "campaña": 0,
+                    "inversion_facebook": 0,
+                    "inversion_instagram": 0,
+                    "inversion_total_diaria": 0,
+                    "created_at": 0
+                },
+                "zero_variance_cols": [],
+                "high_cardinality_cols": [
+                    "fecha"
+                ]
+            },
+            "time_series_health": {
+                "date_range": {
+                    "min": "2018-01-01",
+                    "max": "2026-02-10"
+                },
+                "gaps_detected_count": 0,
+                "has_gaps": false
+            },
+            "statistical_profiling": {
+                "numeric_profile": {
+                    "id": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 1482.0,
+                            "std": 855.4887491954526,
+                            "min": 1.0,
+                            "25%": 741.5,
+                            "50%": 1482.0,
+                            "75%": 2222.5,
+                            "max": 2963.0
+                        },
+                        "outliers": {
+                            "count": 0,
+                            "lower_limit": -1480.0,
+                            "upper_limit": 4444.0
+                        }
+                    },
+                    "inversion_facebook": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 971.8110023624705,
+                            "std": 2004.981519458419,
+                            "min": 0.0,
+                            "25%": 0.0,
+                            "50%": 0.0,
+                            "75%": 0.0,
+                            "max": 5669.0
+                        },
+                        "outliers": {
+                            "count": 568,
+                            "lower_limit": 0.0,
+                            "upper_limit": 0.0
+                        }
+                    },
+                    "inversion_instagram": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 2267.495106311171,
+                            "std": 4678.147158020963,
+                            "min": 0.0,
+                            "25%": 0.0,
+                            "50%": 0.0,
+                            "75%": 0.0,
+                            "max": 13227.0
+                        },
+                        "outliers": {
+                            "count": 568,
+                            "lower_limit": 0.0,
+                            "upper_limit": 0.0
+                        }
+                    },
+                    "inversion_total_diaria": {
+                        "descriptive": {
+                            "count": 2963.0,
+                            "mean": 3239.3061086736416,
+                            "std": 6683.1286769001545,
+                            "min": 0.0,
+                            "25%": 0.0,
+                            "50%": 0.0,
+                            "75%": 0.0,
+                            "max": 18896.0
+                        },
+                        "outliers": {
+                            "count": 568,
+                            "lower_limit": 0.0,
+                            "upper_limit": 0.0
+                        }
+                    }
+                },
+                "categorical_profile": {
+                    "fecha": {
+                        "2018-01-01": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-02": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-03": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-04": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-05": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-06": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-07": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-08": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-09": {
+                            "count": 1,
+                            "percentage": 0.03
+                        },
+                        "2018-01-10": {
+                            "count": 1,
+                            "percentage": 0.03
+                        }
+                    },
+                    "campaña": {
+                        "Sin Campaña": {
+                            "count": 2395,
+                            "percentage": 80.83
+                        },
+                        "Ciclo Abr-May": {
+                            "count": 284,
+                            "percentage": 9.58
+                        },
+                        "Ciclo Sep-Oct": {
+                            "count": 284,
+                            "percentage": 9.58
+                        }
+                    },
+                    "created_at": {
+                        "2026-02-18T15:08:26.928582+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:27.553546+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:28.155938+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:28.771844+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:29.393103+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:29.995031+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:30.510391+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:31.125578+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:31.736035+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        },
+                        "2026-02-18T15:08:32.254394+00:00": {
+                            "count": 100,
+                            "percentage": 3.37
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

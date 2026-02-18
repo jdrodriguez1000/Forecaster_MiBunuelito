@@ -10,8 +10,7 @@ __pycache__/
 
 # Data (Sensitive or large files)
 data/
-outputs/models/
-outputs/forecasts/
+outputs/
 
 # OS
 .DS_Store

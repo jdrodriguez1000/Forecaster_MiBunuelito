@@ -1,37 +1,78 @@
 general:
   project_name: "Mi Buñuelito Forecasting"
   random_state: 42
-  base_path: "."
-  data_path: "data"
-  outputs_path: "outputs"
-  experiments_path: "experiments"
+  horizon: 6
+  mandatory_history_months: 36
+  paths:
+    raw: "data/01_raw"
+    cleansed: "data/02_cleansed"
+    features: "data/03_features"
+    processed: "data/04_processed"
+    models: "outputs/models"
+    reports: "outputs/reports"
+    figures: "outputs/figures"
 
 extractions:
+  db_type: "supabase"
+  sentinels:
+    numeric: [-999, 99999, 9999, -9999]
+    categorical: ["None", "NA", "null", "UNDEFINED", "N/A"]
+    datetime: ["1900-01-01", "2099-12-31"]
+    boolean: []
   tables:
-    - "ventas_diarias"
-    - "redes_sociales"
-    - "promocion_dia"
-    - "macro_economia"
-  min_months_required: 36
+    ventas_diarias:
+      table_name: "ventas_diarias"
+      date_column: "fecha"
+      contract:
+        fecha: "datetime"
+        total_unidades_entregadas: "integer"
+        unidades_precio_normal: "integer"
+        unidades_promo_pagadas: "integer"
+        unidades_promo_bonificadas: "integer"
+        precio_unitario_full: "integer"
+        costo_unitario: "float"
+        ingresos_totales: "float"
+        costo_total: "float"
+        utilidad: "float"
+    
+    macro_economia:
+      table_name: "macro_economia"
+      date_column: "fecha"
+      contract:
+        fecha: "datetime"
+        ipc_mensual: "float"
+        trm_promedio: "float"
+        tasa_desempleo: "float"
+        costo_insumos_index: "float"
+        confianza_consumidor: "float"
+
+    promocion_dia:
+      table_name: "promocion_dia"
+      date_column: "fecha"
+      contract:
+        fecha: "datetime"
+        es_promo: "integer"
+
+    redes_sociales:
+      table_name: "redes_sociales"
+      date_column: "fecha"
+      contract:
+        fecha: "datetime"
+        campaña: "text"
+        inversion_facebook: "float"
+        inversion_instagram: "float"
+        inversion_total_diaria: "float"
 
 preprocessing:
   target_variable: "total_unidades_entregadas"
   aggregation_level: "monthly"
-  imputation_strategy: "business_logic"
 
 eda:
-  figures_path: "experiments/phase_03_eda/figures"
+  dummy: null
 
 features:
-  horizon: 6
   projection_method: "recursive_moving_average"
   window_size: 2
-  mandatory_features:
-    - "pandemic_flag"
-    - "promotions_2x1"
-    - "christmas_novenas"
-    - "holidays"
-    - "payment_patterns"
 
 modeling:
   strategy: "ForecasterDirect"
