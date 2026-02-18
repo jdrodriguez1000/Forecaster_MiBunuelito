@@ -11,6 +11,41 @@ general:
     models: "outputs/models"
     reports: "outputs/reports"
     figures: "outputs/figures"
+    experiments:
+      phase_01: "experiments/phase_01_discovery/artifacts"
+      phase_02: "experiments/phase_02_financial_audit/artifacts"
+
+business_rules:
+  ventas_diarias:
+    total_units_sum:
+      target: "total_unidades_entregadas"
+      components: ["unidades_precio_normal", "unidades_promo_pagadas", "unidades_promo_bonificadas"]
+    promo_balanced:
+      col_pagadas: "unidades_promo_pagadas"
+      col_bonificadas: "unidades_promo_bonificadas"
+    price_viability:
+      price: "precio_unitario_full"
+      cost: "costo_unitario"
+    income_calculation:
+      target: "ingresos_totales"
+      base_units: ["unidades_precio_normal", "unidades_promo_pagadas"]
+      unit_price: "precio_unitario_full"
+    cost_calculation:
+      target: "costo_total"
+      total_units: "total_unidades_entregadas"
+      unit_cost: "costo_unitario"
+    profitability:
+      income: "ingresos_totales"
+      cost: "costo_total"
+    utility_calculation:
+      target: "utilidad"
+      income: "ingresos_totales"
+      cost: "costo_total"
+  
+  redes_sociales:
+    investment_sum:
+      target: "inversion_total_diaria"
+      components: ["inversion_facebook", "inversion_instagram"]
 
 extractions:
   db_type: "supabase"

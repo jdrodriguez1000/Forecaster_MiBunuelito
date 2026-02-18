@@ -1,0 +1,45 @@
+{
+    "phase": "Phase 02: Financial & Business Logic Audit",
+    "timestamp": "2026-02-18 16:05:22",
+    "tables": {
+        "ventas_diarias": {
+            "total_units_consistency": {
+                "success": true,
+                "errors_count": 0,
+                "max_diff": 0.0
+            },
+            "promo_balance_consistency": {
+                "success": true,
+                "errors_count": 0
+            },
+            "price_viability": {
+                "success": true,
+                "violations_count": 0
+            },
+            "income_logic": {
+                "success": true,
+                "errors_count": 0,
+                "max_diff": 0.0
+            },
+            "cost_logic": {
+                "success": false,
+                "errors_count": 568
+            },
+            "positive_gross_margin": {
+                "success": true,
+                "negative_days_count": 0
+            },
+            "utility_logic": {
+                "success": true,
+                "errors_count": 0
+            }
+        },
+        "redes_sociales": {
+            "investment_consistency": {
+                "success": true,
+                "errors_count": 0,
+                "max_diff": 0.0
+            }
+        }
+    }
+}
