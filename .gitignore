@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Data (Sensitive or large files)
+data/
+outputs/models/
+outputs/forecasts/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent/Gemini
+.agent/
+.gemini/

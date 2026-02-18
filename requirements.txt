@@ -1,0 +1,17 @@
+skforecast
+pandas
+numpy
+python-dotenv
+pyyaml
+scikit-learn
+matplotlib
+seaborn
+xgboost
+lightgbm
+papermill
+pytest
+ipykernel
+nbformat
+pyarrow
+SQLAlchemy
+psycopg2-binary

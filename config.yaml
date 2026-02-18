@@ -1,0 +1,47 @@
+general:
+  project_name: "Mi Buñuelito Forecasting"
+  random_state: 42
+  base_path: "."
+  data_path: "data"
+  outputs_path: "outputs"
+  experiments_path: "experiments"
+
+extractions:
+  tables:
+    - "ventas_diarias"
+    - "redes_sociales"
+    - "promocion_dia"
+    - "macro_economia"
+  min_months_required: 36
+
+preprocessing:
+  target_variable: "total_unidades_entregadas"
+  aggregation_level: "monthly"
+  imputation_strategy: "business_logic"
+
+eda:
+  figures_path: "experiments/phase_03_eda/figures"
+
+features:
+  horizon: 6
+  projection_method: "recursive_moving_average"
+  window_size: 2
+  mandatory_features:
+    - "pandemic_flag"
+    - "promotions_2x1"
+    - "christmas_novenas"
+    - "holidays"
+    - "payment_patterns"
+
+modeling:
+  strategy: "ForecasterDirect"
+  models:
+    - "Ridge"
+    - "RandomForestRegressor"
+    - "LGBMRegressor"
+    - "XGBRegressor"
+    - "GradientBoostingRegressor"
+    - "HistGradientBoostingRegressor"
+  backtesting:
+    test_size: 12
+    val_size: 12
