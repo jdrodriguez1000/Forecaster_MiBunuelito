@@ -64,14 +64,12 @@ if r_audit:
         print(f"{status} - {rule}")"""
 
     persistence = """# Celda 6: Persistencia del Reporte (Fase 02)
+from src.utils.helpers import save_report
+
 output_dir = os.path.join("..", validator.reports_path)
-os.makedirs(output_dir, exist_ok=True)
-report_file = os.path.join(output_dir, "phase_02_financial_audit.json")
+save_report(financial_report, output_dir, "phase_02_financial_audit")
 
-with open(report_file, "w", encoding="utf-8") as f:
-    json.dump(financial_report, f, indent=4, ensure_ascii=False)
-
-print(f"✅ Reporte financiero guardado en: {report_file}")"""
+print(f"✅ Reportes financieros (histórico y latest) guardados en: {output_dir}")"""
 
     cells = [
         {"cell_type": "markdown", "source": ["# 💰 Fase 02: Financial & Business Logic Audit\n", "Este notebook valida la consistencia de los datos contables y de inversión utilizando las reglas definidas en `config.yaml`."]},

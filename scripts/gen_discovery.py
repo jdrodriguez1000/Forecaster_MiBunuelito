@@ -101,14 +101,12 @@ for table, audit in report["tables"].items():
     # 8. Persistence (Rule 6.68)
     persistence_md = "## 5. Persistencia del Reporte (Regla 6.68)\nGuardado del reporte de auditoría en la carpeta de experimentos para trazabilidad."
     persistence_code = """# Celda 7: Guardado del reporte oficial (Lab Environment)
+from src.utils.helpers import save_report
+
 output_dir = os.path.join("..", "experiments", "phase_01_discovery", "artifacts")
-os.makedirs(output_dir, exist_ok=True)
+save_report(report, output_dir, "phase_01_discovery")
 
-report_path = os.path.join(output_dir, "phase_01_discovery.json")
-with open(report_path, "w", encoding="utf-8") as f:
-    json.dump(report, f, indent=4, ensure_ascii=False)
-
-print(f"✅ Reporte guardado exitosamente en: {report_path}")"""
+print(f"✅ Reportes (histórico y latest) guardados en: {output_dir}")"""
 
     nb.cells = [
         nbf.v4.new_markdown_cell(title_md),

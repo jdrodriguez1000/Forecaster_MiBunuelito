@@ -52,10 +52,8 @@ def _run_discovery(config, base_reports_path, logger):
     report = loader.load_and_audit()
     
     output_dir = os.path.join(base_reports_path, "phase_01_discovery")
-    os.makedirs(output_dir, exist_ok=True)
-    report_path = os.path.join(output_dir, "phase_01_discovery.json")
-    save_report(report, report_path)
-    logger.info(f"✅ Discovery completado. Reporte: {report_path}")
+    save_report(report, output_dir, "phase_01_discovery")
+    logger.info(f"✅ Discovery completado. Reportes guardados en: {output_dir}")
 
 def _run_financial_audit(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: FINANCIAL_AUDIT ---")
@@ -71,10 +69,8 @@ def _run_financial_audit(config, base_reports_path, logger):
     report = validator.validate_all(data)
     
     output_dir = os.path.join(base_reports_path, "phase_02_financial_audit")
-    os.makedirs(output_dir, exist_ok=True)
-    report_path = os.path.join(output_dir, "phase_02_financial_audit.json")
-    save_report(report, report_path)
-    logger.info(f"✅ Financial Audit completado. Reporte: {report_path}")
+    save_report(report, output_dir, "phase_02_financial_audit")
+    logger.info(f"✅ Financial Audit completado. Reportes guardados en: {output_dir}")
 
 if __name__ == "__main__":
     main()

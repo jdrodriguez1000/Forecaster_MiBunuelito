@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 from datetime import datetime
@@ -8,9 +9,21 @@ def setup_logging(level=logging.INFO):
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-def save_report(report_data, path):
+def save_report(report_data, output_dir, file_prefix):
     """
-    Save phase metrics and metadata to JSON.
+    Saves the report in two formats:
+    1. Historical: file_prefix_YYYYMMDD_HHMMSS.json
+    2. Pointer: file_prefix_latest.json
     """
-    with open(path, 'w') as f:
-        json.dump(report_data, f, indent=4)
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    hist_path = os.path.join(output_dir, f"{file_prefix}_{timestamp}.json")
+    latest_path = os.path.join(output_dir, f"{file_prefix}_latest.json")
+    
+    # Save both versions
+    for path in [hist_path, latest_path]:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(report_data, f, indent=4, ensure_ascii=False)
+    
+    return latest_path, hist_path
