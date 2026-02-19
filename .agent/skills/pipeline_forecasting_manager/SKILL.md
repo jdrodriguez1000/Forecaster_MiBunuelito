@@ -1,4 +1,5 @@
 ---
+name: pipeline_forecasting_manager
 description: Gestiona la ejecución secuencial del pipeline de forecasting, asegurando la adherencia a la Metodología Production-First y los estándares de ciencia de datos.
 ---
 

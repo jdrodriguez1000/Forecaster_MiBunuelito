@@ -1,4 +1,5 @@
 ---
+name: mlops_infrastructure_architect
 description: Define los estándares de ingeniería, jerarquía de almacenamiento y protocolos de calidad para asegurar que los proyectos de forecasting sean reproducibles, modulares y auditables bajo la metodología Production-First.
 ---
 

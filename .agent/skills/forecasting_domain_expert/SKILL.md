@@ -1,4 +1,5 @@
 ---
+name: forecasting_domain_expert
 description: Encapsula el conocimiento experto sobre las dinámicas de venta, estacionalidad y proyecciones matemáticas específicas para el negocio de buñuelos de Mi Buñuelito.
 ---
 
