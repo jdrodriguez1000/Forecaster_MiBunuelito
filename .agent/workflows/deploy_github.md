@@ -1,10 +1,6 @@
----
-description: Sincroniza el proyecto local con GitHub, crea el repositorio remoto y asegura el despliegue inicial bajo los estándares de MLOps y de Supabase.
----
-
 // turbo-all
 ---
-description: Inicializa y sincroniza el proyecto local con GitHub y configura el entorno de Supabase.
+description: Sincroniza el proyecto local con GitHub, crea el repositorio remoto y asegura el despliegue inicial bajo los estándares de MLOps y de Supabase.
 ---
 
 # Workflow: Deploy GitHub (Forecaster Mi Buñuelito)
