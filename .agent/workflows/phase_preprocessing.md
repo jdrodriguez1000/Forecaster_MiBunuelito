@@ -1,3 +1,7 @@
+---
+description: Genera el notebook de preprocesamiento para limpieza, imputación y agregación de datos, construyendo el dataset maestro final para el modelo de forecast
+---
+
 // turbo-all
 ---
 description: generate and maintain the data preprocessing and master construction notebook
