@@ -1,6 +1,7 @@
 ---
 description: Inicializa la infraestructura física del proyecto (directorios, archivos base y entorno virtual) siguiendo los estándares de la habilidad mlops_infrastructure_architect.
 ---
+// turbo-all
 
 # Workflow: Inicialización del Proyecto de Forecasting (Bootstrap Wizard)
 
