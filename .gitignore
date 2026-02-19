@@ -17,5 +17,6 @@ outputs/
 Thumbs.db
 
 # Agent/Gemini
-.agent/
-.gemini/
+# Removed .agent/ and .gemini/ to allow rule visibility in the IDE
+# .agent/
+# .gemini/

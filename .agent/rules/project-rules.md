@@ -1,5 +1,5 @@
 ---
-name: project_rules
+trigger: always_on
 description: Restricciones de dominio, arquitectura MLOps y metodología de trabajo para el proyecto Mi Buñuelito.
 ---
 
