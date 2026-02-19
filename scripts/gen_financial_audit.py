@@ -1,8 +1,8 @@
 import os
 
-def generate_financial_audit_notebook(output_path="notebooks/02_financial_audit.ipynb"):
+def generate_financial_audit_notebook(output_path="notebooks/01A_financial_audit.ipynb"):
     """
-    Genera el notebook de Auditoría Financiera (Fase 02).
+    Genera el notebook de Auditoría Financiera (Fase 01A).
     """
     import json
 
@@ -63,16 +63,16 @@ if r_audit:
         status = "✅ CUMPLE" if res["success"] else "❌ FALLA"
         print(f"{status} - {rule}")"""
 
-    persistence = """# Celda 6: Persistencia del Reporte (Fase 02)
+    persistence = """# Celda 6: Persistencia del Reporte (Fase 01A)
 from src.utils.helpers import save_report
 
 output_dir = os.path.join("..", validator.reports_path)
-save_report(financial_report, output_dir, "phase_02_financial_audit")
+save_report(financial_report, output_dir, "phase_01A_financial_audit")
 
 print(f"✅ Reportes financieros (histórico y latest) guardados en: {output_dir}")"""
 
     cells = [
-        {"cell_type": "markdown", "source": ["# 💰 Fase 02: Financial & Business Logic Audit\n", "Este notebook valida la consistencia de los datos contables y de inversión utilizando las reglas definidas en `config.yaml`."]},
+        {"cell_type": "markdown", "source": ["# 💰 Fase 01A: Financial & Business Logic Audit\n", "Este notebook valida la consistencia de los datos contables y de inversión utilizando las reglas definidas en `config.yaml`."]},
         {"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": [setup_code]},
         {"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": [data_loading]},
         {"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": [audit_execution]},

@@ -24,14 +24,14 @@ class BusinessValidator:
             self.config = yaml.safe_load(f)
             
         self.rules = self.config.get("business_rules", {})
-        self.reports_path = self.config["general"]["paths"]["experiments"].get("phase_02")
+        self.reports_path = self.config["general"]["paths"]["experiments"].get("phase_01A")
 
     def validate_all(self, data_dict: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
         """
         Ejecuta todas las validaciones definidas para los DataFrames proporcionados.
         """
         audit_report = {
-            "phase": "Phase 02: Financial & Business Logic Audit",
+            "phase": "Phase 01A: Financial & Business Logic Audit",
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "tables": {}
         }

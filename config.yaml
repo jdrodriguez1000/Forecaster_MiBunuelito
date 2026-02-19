@@ -13,35 +13,53 @@ general:
     figures: "outputs/figures"
     experiments:
       phase_01: "experiments/phase_01_discovery/artifacts"
-      phase_02: "experiments/phase_02_financial_audit/artifacts"
+      phase_01A: "experiments/phase_01A_financial_audit/artifacts"
 
 business_rules:
   ventas_diarias:
+    # R1: total_unidades = precio_normal + promo_pagadas + promo_bonificadas
     total_units_sum:
       target: "total_unidades_entregadas"
       components: ["unidades_precio_normal", "unidades_promo_pagadas", "unidades_promo_bonificadas"]
+    
+    # R2: promo_pagadas == promo_bonificadas
     promo_balanced:
       col_pagadas: "unidades_promo_pagadas"
       col_bonificadas: "unidades_promo_bonificadas"
+    
+    # R3: precio >= costo
     price_viability:
       price: "precio_unitario_full"
       cost: "costo_unitario"
+    
+    # R4: ingresos = (normal + pagadas) * precio_full
     income_calculation:
       target: "ingresos_totales"
       base_units: ["unidades_precio_normal", "unidades_promo_pagadas"]
       unit_price: "precio_unitario_full"
+    
+    # R5: costo_total = unidades * costo_unitario
     cost_calculation:
       target: "costo_total"
       total_units: "total_unidades_entregadas"
       unit_cost: "costo_unitario"
+    
+    # R6: ingresos >= costo_total (Margen Bruto Positivo)
     profitability:
       income: "ingresos_totales"
       cost: "costo_total"
+    
+    # R7: utilidad = ingresos - costo
     utility_calculation:
       target: "utilidad"
       income: "ingresos_totales"
       cost: "costo_total"
-  
+
+    # Lógica de reconstrucción para el Preprocesador (Alias del R1)
+    total_units_recalculation:
+      target: "total_unidades_entregadas"
+      components: ["unidades_precio_normal", "unidades_promo_pagadas", "unidades_promo_bonificadas"]
+
   redes_sociales:
     investment_sum:
       target: "inversion_total_diaria"
@@ -101,6 +119,69 @@ extractions:
 preprocessing:
   target_variable: "total_unidades_entregadas"
   aggregation_level: "monthly"
+  
+  # 1 y 2. Limpieza Estructural (Atomicidad y Calidad)
+  cleaning:
+    # Drop inmediato: Columnas adicionales detectadas en Discovery y las que violan atomicidad
+    drop_immediate:
+      ventas_diarias: ["ingresos_totales", "costo_total", "utilidad", "id", "created_at"]
+      macro_economia: ["id", "created_at"]
+      promocion_dia: ["id", "created_at"]
+      redes_sociales: ["inversion_total_diaria", "id", "created_at", "campaña"]
+    
+    # Columnas de soporte: Se usan para el Preprocesado y luego se eliminan (Anti-Laziness/Data Leakage)
+    target_build_components: ["unidades_precio_normal", "unidades_promo_pagadas", "unidades_promo_bonificadas"]
+
+  # 3. Blindaje Temporal (Regla de Oro)
+  anti_leakage:
+    active: true
+    mode: "strict_closed_month"
+
+  # 4. Gestión de Duplicados (Filas y Fechas)
+  duplicates:
+    strategy: "keep_last" # Regla de Oro: Conservar registro más reciente en tiempo de carga
+
+  # 6. Reindexación e Integridad Temporal (Gaps)
+  reindexing:
+    frequencies:
+      ventas_diarias: "D"
+      promocion_dia: "D"
+      redes_sociales: "D"
+      macro_economia: null # Sin reindexación necesaria (frecuencia mensual nativa)
+
+  # 7. Protocolo de Imputación por Dominio
+  imputation:
+    macro_economia:
+      method: "ffill"
+      fallback: "bfill"
+    
+    promocion_dia:
+      relevance_year: 2022
+      cycles:
+        spring: {start: "04-01", end: "05-31"}
+        autumn: {start: "09-01", end: "10-31"}
+      default_value: 0
+
+    redes_sociales:
+      strategy_milestone: "2022-03-17"
+      campaign_windows:
+        - name: "Ciclo Abr-May"
+          start: "03-15"
+          end: "05-25"
+        - name: "Ciclo Sep-Oct"
+          start: "09-15"
+          end: "10-25"
+      default_investment: 0.0
+      default_label: "No ciclo"
+
+    ventas_diarias:
+      units:
+        method: "ffill"
+        fallback: "bfill"
+      financials:
+        price_col: "precio_unitario_full"
+        cost_col: "costo_unitario"
+        strategy: "monthly_mode"
 
 eda:
   dummy: null
