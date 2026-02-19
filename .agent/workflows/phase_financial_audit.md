@@ -1,3 +1,4 @@
+// turbo-all
 ---
 description: generate and maintain the financial and business logic audit notebook
 ---

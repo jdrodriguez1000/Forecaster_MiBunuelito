@@ -1,7 +1,7 @@
+// turbo-all
 ---
 description: Inicializa y sincroniza el proyecto local con GitHub y configura el entorno de Supabase.
 ---
-// turbo-all
 
 # Workflow: Deploy GitHub (Forecaster Mi Buñuelito)
 

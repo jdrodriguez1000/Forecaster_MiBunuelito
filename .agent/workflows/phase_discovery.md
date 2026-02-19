@@ -1,3 +1,4 @@
+// turbo-all
 ---
 description: generate and maintain the data discovery and extraction notebook
 ---
