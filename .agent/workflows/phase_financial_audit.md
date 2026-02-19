@@ -1,5 +1,5 @@
 ---
-description: Genera el notebook de auditoría financiera para validar la consistencia contable entre ventas, costos y utilidades según las reglas de negocio en YAML.
+description: description: generate and maintain the financial and business logic audit notebook
 ---
 
 // turbo-all

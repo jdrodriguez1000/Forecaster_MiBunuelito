@@ -1,5 +1,5 @@
 ---
-description: Genera automáticamente el notebook de descubrimiento de datos y extracción de Supabase, aplicando auditoría de integridad y descarga en formato crudo.
+description: description: generate and maintain the data discovery and extraction notebook
 ---
 
 // turbo-all
