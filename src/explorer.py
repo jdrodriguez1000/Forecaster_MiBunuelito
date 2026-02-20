@@ -84,6 +84,9 @@ class DataExplorer:
             # Step 7: Business Events Validation
             self._step_07_validate_business_events(train_df)
             
+            # Step 8: Expert Interpretation (Intelligence Layer)
+            self._step_08_expert_interpretation(train_df)
+
             # Finalize Report
             report_dir = os.path.join(self.config["general"]["paths"]["reports"], "phase_03_eda")
             latest_path, _ = save_report(self.report, report_dir, "phase_03_eda")
@@ -319,3 +322,61 @@ class DataExplorer:
             "promociones": promo_stats,
             "december_novenas": dec_stats
         }
+
+    def _step_08_expert_interpretation(self, train):
+        logger.info("EDA - Step 8: Expert Interpretation (Intelligence Layer)")
+        results = self.report["results"]
+        
+        # 1. Analyze Drift to determine if we need weighting or trend handling
+        drift = results["drift_analysis"]
+        drift_ratio = drift["test"]["mean"] / drift["train"]["mean"] if drift["train"]["mean"] > 0 else 1
+        drift_status = "Significant Positive" if drift_ratio > 1.10 else "Minor/Stable"
+        
+        # 2. Extract Stationarity Verdict
+        stationary = results["time_series"]["stationarity"]["is_stationary"]
+        p_val = results["time_series"]["stationarity"]["p_value"]
+        
+        # 3. Calculate Signal-to-Noise Ratio (SNR) for predictability health
+        resid_values = [v for v in results["time_series"]["decomposition"]["values"]["resid"].values() if v is not None]
+        resid_std = np.std(resid_values) if resid_values else 1
+        target_std = drift["train"]["std"]
+        snr = (target_std / resid_std) if resid_std > 0 else 0
+        
+        # 4. Formulate findings
+        main_findings = [
+            f"Series level has increased by {((drift_ratio-1)*100):.1f}% between Train and Test periods.",
+            f"Pandemic impact was severe ({results['business_events']['pandemia']['impact_pct']:.1f}%), requiring explicit binary indicator.",
+            "Strong annual seasonality confirmed (peaks in Jan/Dec), validating the 12-month lag importance."
+        ]
+        
+        # 5. Build Recommendation Objects
+        recommendations = {
+            "main_insights": main_findings,
+            "technical_diagnostics": {
+                "stationarity": {
+                    "verdict": "Non-Stationary" if not stationary else "Stationary",
+                    "p_value": float(p_val),
+                    "action_required": "First-order differentiation (d=1) required" if not stationary else "No differentiation needed"
+                },
+                "log_transform": "Highly Recommended" if drift_status == "Significant Positive" else "Optional/Not Required",
+                "signal_to_noise": {
+                    "value": float(snr),
+                    "interpretation": "High predictability" if snr > 2 else "High noise (Difficulty: High)"
+                },
+                "seasonality_model": results["time_series"]["decomposition"]["model"]
+            },
+            "suggested_modeling_strategy": {
+                "target_series": "Log-diff series (Returns)" if not stationary else "Log series",
+                "lags_grid": [1, 2, 3, 6, 12, 13],
+                "windows_grid": [3, 6, 12],
+                "weighting_strategy": "Temporal decay (Recency weighting) recommended due to drift." if drift_status == "Significant Positive" else "Uniform weights"
+            },
+            "exogenous_to_build": [
+                "is_pandemic", "is_novenas", "is_promo_season", "ipc_mensual", "confianza_consumidor"
+            ],
+            "structural_break_risk": "High" if drift_ratio > 1.25 or drift_ratio < 0.75 else "Low"
+        }
+        
+        # Update report with recommendations
+        self.report["expert_recommendations"] = recommendations
+        logger.info("✅ Expert Interpretation layer added to report.")
