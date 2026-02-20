@@ -83,6 +83,11 @@ class DataLoader:
                     logger.info(f"No new records found for {table_name}.")
                     df_total = df_local
 
+            # --- RULE: COLUMN NORMALIZATION (ASCII/English internal contract) ---
+            if table_name == "redes_sociales" and "campaña" in df_total.columns:
+                logger.info(f"Normalizing 'campaña' -> 'campaign' for {table_name}")
+                df_total = df_total.rename(columns={"campaña": "campaign"})
+
             # Persistence in local Parquet
             if not df_total.empty:
                 df_total.to_parquet(output_file, index=False)
