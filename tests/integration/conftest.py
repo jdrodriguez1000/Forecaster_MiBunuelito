@@ -4,6 +4,13 @@ import yaml
 import shutil
 import pandas as pd
 from unittest.mock import MagicMock, patch
+import warnings
+
+# Ignorar ruidos de librerías en los tests
+warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", message=".*vert.*")
+warnings.filterwarnings("ignore", message=".*orientation.*")
 
 @pytest.fixture
 def integration_config(tmp_path):
@@ -27,10 +34,10 @@ def integration_config(tmp_path):
     config["general"]["paths"]["reports"] = str(base_outputs / "reports")
     config["general"]["paths"]["figures"] = str(base_outputs / "figures")
     
-    # Crear los directorios físicos
-    os.makedirs(config["general"]["paths"]["raw"], exist_ok=True)
-    os.makedirs(config["general"]["paths"]["cleansed"], exist_ok=True)
-    os.makedirs(config["general"]["paths"]["reports"], exist_ok=True)
+    # Ajustar parámetros de EDA para que funcionen con datos de prueba
+    config["eda"]["partitioning"]["test_size"] = 10
+    config["eda"]["partitioning"]["val_size"] = 10
+    config["eda"]["time_series"]["autocorrelation"]["max_lags"] = 10
     
     return config
 
@@ -38,44 +45,49 @@ def integration_config(tmp_path):
 def mock_supabase_responses():
     """
     Genera datos ficticios para las 4 tablas principales que simulan Supabase.
+    Generamos 60 meses para permitir que las pruebas de EDA (descomposición, etc.) funcionen.
     """
-    # Ventas Diarias (Diciembre 2023 a Enero 2024)
+    periods_days = 60 * 30 # Aprox
+    dates_daily = pd.date_range("2019-01-01", periods=periods_days, freq="D")
+    
+    # Ventas Diarias
     ventas = pd.DataFrame({
-        "fecha": pd.date_range("2023-12-01", "2024-01-31", freq="D").strftime("%Y-%m-%d"),
-        "total_unidades_entregadas": [100] * 62,
-        "unidades_precio_normal": [60] * 62,
-        "unidades_promo_pagadas": [20] * 62,
-        "unidades_promo_bonificadas": [20] * 62,
-        "precio_unitario_full": [5000] * 62,
-        "costo_unitario": [2000.0] * 62,
-        "ingresos_totales": [400000.0] * 62,
-        "costo_total": [200000.0] * 62,
-        "utilidad": [200000.0] * 62
+        "fecha": dates_daily.strftime("%Y-%m-%d"),
+        "total_unidades_entregadas": [100 + i%10 for i in range(len(dates_daily))],
+        "unidades_precio_normal": [60] * len(dates_daily),
+        "unidades_promo_pagadas": [20] * len(dates_daily),
+        "unidades_promo_bonificadas": [20] * len(dates_daily),
+        "precio_unitario_full": [5000] * len(dates_daily),
+        "costo_unitario": [2000.0] * len(dates_daily),
+        "ingresos_totales": [400000.0] * len(dates_daily),
+        "costo_total": [200000.0] * len(dates_daily),
+        "utilidad": [200000.0] * len(dates_daily)
     })
     
     # Redes Sociales
     redes = pd.DataFrame({
-        "fecha": pd.date_range("2023-12-01", "2024-01-31", freq="D").strftime("%Y-%m-%d"),
-        "campaign": ["Navidad"] * 31 + ["Enero"] * 31,
-        "inversion_facebook": [50000.0] * 62,
-        "inversion_instagram": [30000.0] * 62,
-        "inversion_total_diaria": [80000.0] * 62
+        "fecha": dates_daily.strftime("%Y-%m-%d"),
+        "campaign": ["Camp"] * len(dates_daily),
+        "inversion_facebook": [50000.0] * len(dates_daily),
+        "inversion_instagram": [30000.0] * len(dates_daily),
+        "inversion_total_diaria": [80000.0] * len(dates_daily)
     })
     
     # Promocion Dia
     promo = pd.DataFrame({
-        "fecha": pd.date_range("2023-12-01", "2024-01-31", freq="D").strftime("%Y-%m-%d"),
-        "es_promo": [0] * 62
+        "fecha": dates_daily.strftime("%Y-%m-%d"),
+        "es_promo": [0] * len(dates_daily)
     })
     
-    # Macro Economia
+    # Macro Economia (Mensual)
+    dates_monthly = pd.date_range("2019-01-01", periods=60, freq="MS")
     macro = pd.DataFrame({
-        "fecha": ["2023-12-01", "2024-01-01"],
-        "ipc_mensual": [0.5, 0.4],
-        "trm_promedio": [3900.0, 3950.0],
-        "tasa_desempleo": [10.2, 10.5],
-        "costo_insumos_index": [115.0, 116.0],
-        "confianza_consumidor": [12.0, 11.5]
+        "fecha": dates_monthly.strftime("%Y-%m-%d"),
+        "ipc_mensual": [0.5] * 60,
+        "trm_promedio": [3900.0] * 60,
+        "tasa_desempleo": [10.2] * 60,
+        "costo_insumos_index": [115.0] * 60,
+        "confianza_consumidor": [12.0] * 60
     })
     
     return {

@@ -15,3 +15,4 @@ nbformat
 pyarrow
 SQLAlchemy
 psycopg2-binary
+statsmodels

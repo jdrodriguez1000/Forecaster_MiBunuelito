@@ -53,13 +53,26 @@ def test_pipeline_full_integration(integration_config, mock_supabase_responses):
     preprocessor = Preprocessor(integration_config)
     master_df = preprocessor.process(raw_data)
         
-    # --- PASO 3: VALIDACIONES FINALES ---
+    # --- PASO 3: MOCK DE EDA ---
+    # El archivo master_cleansed.parquet ya fue creado en el paso anterior
+    from src.explorer import DataExplorer
+    
+    # Necesitamos que matplotlib no abra ventanas
+    import matplotlib
+    matplotlib.use('Agg')
+    
+    explorer = DataExplorer(integration_config)
+    eda_report = explorer.run_eda(master_df)
+    
+    assert eda_report["status"] == "success"
+    
+    # --- PASO 4: VALIDACIONES FINALES ---
     # 1. El archivo maestro debe existir
     cleansed_path = os.path.join(integration_config["general"]["paths"]["cleansed"], "master_cleansed.parquet")
     assert os.path.exists(cleansed_path)
     
-    # 2. El archivo maestro debe ser mensual (Diciembre 2023 y Enero 2024)
-    assert len(master_df) == 2
+    # 2. El archivo maestro debe ser mensual (60 meses)
+    assert len(master_df) >= 59 # Aprox 60
     
     # 3. Verificamos presencia de componentes clave (Ventas, Redes, Macro)
     cols = master_df.columns
@@ -71,7 +84,14 @@ def test_pipeline_full_integration(integration_config, mock_supabase_responses):
     reports_base = integration_config["general"]["paths"]["reports"]
     report_dir_v1 = os.path.join(reports_base, "phase_01_discovery")
     report_dir_v2 = os.path.join(reports_base, "phase_02_preprocessing")
+    report_dir_v3 = os.path.join(reports_base, "phase_03_eda")
     
-    # Nota: Preprocessor.py guarda el reporte internamente, verificamos carpeta
     assert os.path.exists(report_dir_v1), f"Discovery report dir missing: {report_dir_v1}"
     assert os.path.exists(report_dir_v2), f"Preprocessing report dir missing: {report_dir_v2}"
+    assert os.path.exists(report_dir_v3), f"EDA report dir missing: {report_dir_v3}"
+
+    # 5. Verificar que hay figuras en EDA
+    figures_base = integration_config["general"]["paths"]["figures"]
+    eda_fig_dir = os.path.join(figures_base, "phase_03_eda")
+    assert os.path.exists(eda_fig_dir)
+    assert len(os.listdir(eda_fig_dir)) > 0

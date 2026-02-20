@@ -185,7 +185,50 @@ preprocessing:
         strategy: "monthly_mode"
 
 eda:
-  dummy: null
+  # 1. Temporal Partitioning (Rule 3.1)
+  partitioning:
+    test_size: 12
+    val_size: 12
+    random_state: 42
+  
+  # 2. Analysis Levels (Rule 3.3)
+  analysis_levels: ["month", "quarter", "semester", "year"]
+  
+  # 3. Time Series Diagnostics (Rule 3.4, 3.5, 3.6)
+  time_series:
+    decomposition:
+      model: "additive"
+      period: 12
+    stationarity:
+      test: "adfuller"
+      max_lags: null
+      significance_level: 0.05
+    autocorrelation:
+      max_lags: 24
+      alpha: 0.05
+  
+  # 4. Business Events Validation (Rule 3.7)
+  business_events:
+    pandemia:
+      start: "2020-04-01"
+      end: "2021-05-31"
+    promociones:
+      months: [4, 5, 9, 10]
+    novenas:
+      start_day: 16
+      end_day: 23
+      month: 12
+    payments:
+      days: [15, 30]
+      bonus_months: [6, 12]
+
+  # 5. Visualizations & Snapshot Management
+  visuals:
+    save_figures: true
+    history_folder: "history"
+    fig_size: [12, 6]
+    style: "seaborn-v0_8-whitegrid"
+    palette: "viridis"
 
 features:
   projection_method: "recursive_moving_average"

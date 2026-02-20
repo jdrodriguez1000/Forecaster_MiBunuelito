@@ -36,10 +36,65 @@ def test_orchestrator_phase_routing(integration_config, mock_supabase_responses)
     report_dir = os.path.join(integration_config["general"]["paths"]["reports"], "phase_01_discovery")
     assert os.path.exists(os.path.join(report_dir, "phase_01_discovery_latest.json"))
 
+def test_orchestrator_phase_eda(integration_config, mock_supabase_responses):
+    """
+    Verifica que el orquestador ejecute la fase EDA correctamente.
+    Requiere que master_cleansed.parquet exista.
+    """
+    # 1. Preparar datos (Simular que ya pasó el preprocesamiento)
+    import pandas as pd
+    from src.preprocessor import Preprocessor
+    preprocessor = Preprocessor(integration_config)
+    
+    # Necesitamos datos raw para el preprocessor
+    # (En una prueba real de orquesta, esto vendría de discovery, pero aquí lo simulamos)
+    master_df = preprocessor.process(mock_supabase_responses) 
+    
+    # 2. Ejecutar EDA vía Orchestrator
+    test_args = ["--phase", "eda"]
+    with patch("src.utils.config_loader.load_config", return_value=integration_config), \
+         patch("main.load_config", return_value=integration_config):
+        
+        # Necesitamos que matplotlib no abra ventanas
+        import matplotlib
+        matplotlib.use('Agg')
+        
+        main(test_args)
+        
+    # 3. Verificar resultados
+    report_dir = os.path.join(integration_config["general"]["paths"]["reports"], "phase_03_eda")
+    assert os.path.exists(os.path.join(report_dir, "phase_03_eda_latest.json"))
+    
+    # Verificar que se generó al menos una figura
+    figures_dir = os.path.join(integration_config["general"]["paths"]["figures"], "phase_03_eda")
+    assert os.path.exists(figures_dir)
+    assert len(os.listdir(figures_dir)) > 0
+
 def test_orchestrator_invalid_phase():
     """
     Verifica que el orquestador falla ante una fase inexistente (validación de argparse).
     """
     test_args = ["--phase", "inexistente"]
     with pytest.raises(SystemExit): 
+        main(test_args)
+
+def test_orchestrator_modes(integration_config):
+    """
+    Verifica que el orquestador acepta los modos train y forecast.
+    """
+    # Probar modo train (explícito)
+    test_args = ["--mode", "train", "--phase", "features"]
+    with patch("main.load_config", return_value=integration_config), \
+         patch("main.setup_logging"):
+        main(test_args) # No debería fallar
+
+    # Probar modo forecast
+    test_args = ["--mode", "forecast", "--phase", "inference"]
+    with patch("main.load_config", return_value=integration_config), \
+         patch("main.setup_logging"):
+        main(test_args) # No debería fallar
+
+    # Probar modo inválido
+    test_args = ["--mode", "invalid"]
+    with pytest.raises(SystemExit):
         main(test_args)

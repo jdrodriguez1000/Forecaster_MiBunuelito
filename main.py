@@ -8,26 +8,35 @@ from src.utils.helpers import setup_logging, save_report
 from src.loader import DataLoader
 from src.validator import BusinessValidator
 from src.preprocessor import Preprocessor
+from src.explorer import DataExplorer
 
 def main(args_list=None):
     parser = argparse.ArgumentParser(description="Mi Buñuelito Forecasting Orchestrator")
     parser.add_argument("--phase", type=str, required=False, default=None,
-                        choices=["discovery", "financial_audit", "preprocessing", "eda", "features", "modeling"],
-                        help="Execution phase to run (if omitted, runs all implemented phases)")
+                        choices=["discovery", "financial_audit", "preprocessing", "eda", "features", "modeling", "inference"],
+                        help="Execution phase to run (if omitted, runs all phases for the selected mode)")
+    parser.add_argument("--mode", "-m", type=str, required=False, default="train",
+                        choices=["train", "forecast"],
+                        help="Execution mode: 'train' (full development) or 'forecast' (production inference). Default: 'train'")
     
     args = parser.parse_args(args_list)
     config = load_config()
     setup_logging()
     
     logger = logging.getLogger("Orchestrator")
+    logger.info(f"🛠️ Modo de ejecuci\u00f3n: {args.mode.upper()}")
     
     # Define phases to run
     if args.phase:
         phases_to_run = [args.phase]
         logger.info(f"🚀 Iniciando fase individual: {args.phase}")
     else:
-        phases_to_run = ["discovery", "financial_audit", "preprocessing"] # Fases implementadas
-        logger.info(f"🚀 Iniciando Pipeline Completo (Fases: {', '.join(phases_to_run)})")
+        if args.mode == "train":
+            phases_to_run = ["discovery", "financial_audit", "preprocessing", "eda"] # Se a\u00f1adir\u00e1n 'features' y 'modeling'
+        else: # forecast mode
+            phases_to_run = ["discovery", "preprocessing", "inference"] # Se a\u00f1adir\u00e1 'features' antes de 'inference'
+            
+        logger.info(f"🚀 Iniciando Pipeline ({args.mode}): {', '.join(phases_to_run)}")
 
     base_reports_path = config["general"]["paths"]["reports"]
 
@@ -42,9 +51,20 @@ def main(args_list=None):
             elif phase == "preprocessing":
                 _run_preprocessing(config, base_reports_path, logger)
             
+            elif phase == "eda":
+                _run_eda(config, base_reports_path, logger)
+            
+            elif phase == "features":
+                _run_features(config, base_reports_path, logger)
+
+            elif phase == "modeling":
+                _run_modeling(config, base_reports_path, logger)
+
+            elif phase == "inference":
+                _run_inference(config, base_reports_path, logger)
+
             else:
-                if args.phase: # Solo advertir si el usuario pidió explícitamente una fase no implementada
-                    logger.warning(f"⚠️ La fase '{phase}' aún no está implementada en el orquestador.")
+                logger.warning(f"⚠️ La fase '{phase}' no tiene un ejecutor asignado en el orquestador.")
 
     except Exception as e:
         logger.error(f"❌ Error crítico en la ejecución: {str(e)}")
@@ -100,6 +120,34 @@ def _run_preprocessing(config, base_reports_path, logger):
     master_df = preprocessor.process(data)
     
     logger.info(f"✅ Preprocessing completado. Master dataset generado con {len(master_df)} registros.")
+
+def _run_eda(config, base_reports_path, logger):
+    logger.info("--- Ejecutando Fase: EDA ---")
+    
+    # 1. Cargar Master Cleansed
+    cleansed_path = os.path.join(config["general"]["paths"]["cleansed"], "master_cleansed.parquet")
+    if not os.path.exists(cleansed_path):
+        raise FileNotFoundError(f"No se encontró el archivo maestro en {cleansed_path}. Ejecuta la fase de preprocesamiento primero.")
+    
+    df = pd.read_parquet(cleansed_path)
+    
+    # 2. Ejecutar Explorer
+    explorer = DataExplorer(config)
+    report = explorer.run_eda(df)
+    
+    logger.info(f"✅ EDA completado. Resultados en el reporte y visualizaciones generadas.")
+
+def _run_features(config, base_reports_path, logger):
+    logger.info("--- Ejecutando Fase: FEATURES ---")
+    logger.warning("🚧 Fase FEATURES en desarrollo. Implementaci\u00f3n pendiente.")
+
+def _run_modeling(config, base_reports_path, logger):
+    logger.info("--- Ejecutando Fase: MODELING ---")
+    logger.warning("🚧 Fase MODELING en desarrollo. Implementaci\u00f3n pendiente.")
+
+def _run_inference(config, base_reports_path, logger):
+    logger.info("--- Ejecutando Fase: INFERENCE (FORECAST MODE) ---")
+    logger.warning("🚧 Fase INFERENCE en desarrollo. Implementaci\u00f3n pendiente.")
 
 if __name__ == "__main__":
     main()
