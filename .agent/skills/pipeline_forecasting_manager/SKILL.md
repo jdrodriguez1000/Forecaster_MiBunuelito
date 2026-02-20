@@ -68,7 +68,7 @@ En cada fase técnica, el agente debe seguir obligatoriamente este flujo secuenc
 *   **Resultados**: Modelo en `outputs/models/` y pronósticos en `outputs/forecasts/`.
 
 ## 📊 Protocolo de Trazabilidad
-Cada fase debe generar un artefacto JSON con:
+Cada fase debe generar un artefacto JSON bajo el **Patrón de Persistencia Dual** (Versión `latest` en raíz y versiones históricas en subcarpeta `history/`) incluyendo:
 *   `phase`: Nombre de la fase.
 *   `timestamp`: Fecha y hora de ejecución.
 *   `metrics`: Resultados clave de la fase (ej. % nulos, error del modelo).

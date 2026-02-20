@@ -63,7 +63,7 @@ Cada fase técnica debe cerrar con pruebas que garanticen la integridad del pipe
 
 ### 🏭 Producción (`outputs/`)
 *   Resultados de ejecución de **`main.py`** o triggers automáticos.
-*   `outputs/reports/`: Reportes JSON finales y oficiales. Siguen el **Patrón de Persistencia Dual** para permitir que agentes de IA analicen el histórico (`_YYYYMMDD_HHMMSS.json`) y el estado actual (`_latest.json`).
+*   `outputs/reports/`: Reportes JSON finales y oficiales. Siguen el **Patrón de Persistencia Dual** para permitir que agentes de IA analicen el histórico (dentro de subcarpeta `history/` con formato `_YYYYMMDD_HHMMSS.json`) y el estado actual (en raíz como `_latest.json`).
 *   `outputs/models/`: Binarios de los modelos campeones (`.joblib`, `.pkl`).
 *   `outputs/forecasts/`: Resultados finales del pronóstico aplicados a datos reales.
 *   `outputs/metrics/`: Resúmenes de desempeño (MAPE, RMSE, etc.) del set de test/evaluación.

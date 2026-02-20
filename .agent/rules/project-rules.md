@@ -80,8 +80,8 @@ Queda estrictamente prohibido mezclar salidas de experimentación con las de pro
 
 ## 7. 📤 Protocolo de Entregables y Trazabilidad
 *   **Reportes de Fase (Trazabilidad):** Cada proceso debe generar obligatoriamente archivos `.json` siguiendo el **Patrón de Persistencia Dual**:
-    *   **Versión Histórica:** `nombre_fase_YYYYMMDD_HHMMSS.json` (Inmutable).
-    *   **Versión Puntero:** `nombre_fase_latest.json` (Sobrescrita en cada ejecución).
+    *   **Versión Histórica:** Se guarda en una subcarpeta llamada `history/` con el formato `nombre_fase_YYYYMMDD_HHMMSS.json` (Inmutable).
+    *   **Versión Puntero:** Se guarda en la raíz de la carpeta de reportes de la fase como `nombre_fase_latest.json` (Sobrescrita en cada ejecución).
     *   **Contenido:** Debe incluir encabezado con `phase`, `timestamp` y `description`.
 *   **Gestión de Entorno:** Ejecución obligatoria dentro de ambiente virtual `.venv` y mantenimiento riguroso de `requirements.txt`.
 *   **Aprobación de Fase (Gatekeeper):** Queda estrictamente prohibido avanzar a una nueva fase del proyecto sin la **aprobación explícita y completa** del usuario sobre los entregables de la fase actual.
