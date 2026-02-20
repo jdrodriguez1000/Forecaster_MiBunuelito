@@ -63,7 +63,7 @@ def mock_data():
     # Redes Sociales
     rs = pd.DataFrame({
         "fecha": pd.to_datetime(["2024-01-01", "2024-01-02"]),
-        "campaña": ["A", "B"],
+        "campaign": ["A", "B"],
         "inversion_facebook": [100.0, 200.0],
         "inversion_instagram": [50.0, 75.0],
         "inversion_total_diaria": [150.0, 275.0],
@@ -96,7 +96,7 @@ def test_step_02_drop_immediate(preprocessor, mock_data):
     assert "ingresos_totales" not in vd.columns
     
     rs = mock_data["redes_sociales"]
-    assert "campaña" not in rs.columns
+    assert "campaign" not in rs.columns
     assert "inversion_total_diaria" not in rs.columns
 
 def test_step_03_anti_leakage(preprocessor, mock_data):

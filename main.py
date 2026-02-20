@@ -9,13 +9,13 @@ from src.loader import DataLoader
 from src.validator import BusinessValidator
 from src.preprocessor import Preprocessor
 
-def main():
+def main(args_list=None):
     parser = argparse.ArgumentParser(description="Mi Buñuelito Forecasting Orchestrator")
     parser.add_argument("--phase", type=str, required=False, default=None,
                         choices=["discovery", "financial_audit", "preprocessing", "eda", "features", "modeling"],
                         help="Execution phase to run (if omitted, runs all implemented phases)")
     
-    args = parser.parse_args()
+    args = parser.parse_args(args_list)
     config = load_config()
     setup_logging()
     

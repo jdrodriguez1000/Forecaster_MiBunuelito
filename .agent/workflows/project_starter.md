@@ -17,7 +17,7 @@ Este flujo de trabajo es responsable de la creación física de la infraestructu
 // turbo
 1. Generar la jerarquía de carpetas definida en el Skill `mlops_infrastructure_architect`:
     * `data/01_raw`, `data/02_cleansed`, `data/03_features`, `data/04_processed`
-    * `notebooks/`, `scripts/`, `src/connectors/`, `src/models/`, `src/utils/`, `tests/`
+    * `notebooks/`, `scripts/`, `src/connectors/`, `src/models/`, `src/utils/`, `tests/unit/`, `tests/integration/`
     * `experiments/phase_01_discovery/artifacts`, `experiments/phase_01_discovery/figures`
     * `experiments/phase_01A_financial_audit/artifacts`
     * `experiments/phase_02_preprocessing/artifacts`, `experiments/phase_02_preprocessing/figures`

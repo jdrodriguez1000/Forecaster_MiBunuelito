@@ -112,7 +112,7 @@ extractions:
       date_column: "fecha"
       contract:
         fecha: "datetime"
-        campaña: "text"
+        campaign: "text"
         inversion_facebook: "float"
         inversion_instagram: "float"
         inversion_total_diaria: "float"
@@ -128,7 +128,7 @@ preprocessing:
       ventas_diarias: ["ingresos_totales", "costo_total", "utilidad", "id", "created_at"]
       macro_economia: ["id", "created_at"]
       promocion_dia: ["id", "created_at"]
-      redes_sociales: ["inversion_total_diaria", "id", "created_at", "campaña"]
+      redes_sociales: ["inversion_total_diaria", "id", "created_at", "campaign"]
     
     # Columnas de soporte: Se usan para el Preprocesado y luego se eliminan (Anti-Laziness/Data Leakage)
     target_build_components: ["unidades_precio_normal", "unidades_promo_pagadas", "unidades_promo_bonificadas"]
