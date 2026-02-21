@@ -12,12 +12,13 @@ En cada fase técnica, el agente debe seguir obligatoriamente este flujo secuenc
 
 1.  **[CONFIG]**: Parametrización en `config.yaml`. Definición de rutas y reglas.
 2.  **[CORE]**: Desarrollo de la lógica en archivos `.py` dentro de `src/`.
-3.  **[ORCHESTRATE]**: Integración y prueba de la lógica en `main.py`.
-4.  **[PROD-OUT]**: Ejecución en terminal para generar reportes oficiales en `outputs/`.
-5.  **[TEST]**: Implementación y aprobación de pruebas unitarias en `tests/`.
-6.  **[GEN-SCRIPT]**: Creación del script generador de notebooks en `scripts/` (ej: `gen_phase.py`).
-7.  **[LAB-WORKFLOW]**: Creación del workflow `.agent/workflows/` para generar el notebook de experimentación.
-8.  **[CLOSE]**: Commit a GitHub y aprobación formal del usuario.
+3.  **[UNIT-TEST]**: Implementación y aprobación de pruebas unitarias en `tests/unit/`.
+4.  **[ORCHESTRATE]**: Integración y desarrollo del flujo en `main.py`.
+5.  **[PROD-OUT]**: Ejecución en terminal para generar reportes y artefactos oficiales en `outputs/`.
+6.  **[INTEGRATION-TEST]**: Validación de flujo completo y contratos E2E en `tests/integration/`.
+7.  **[GEN-SCRIPT]**: Creación del script generador de notebooks en `scripts/`.
+8.  **[LAB-WORKFLOW]**: Creación del workflow para generar el notebook de experimentación.
+9.  **[CLOSE]**: Commit a GitHub y aprobación formal del usuario.
 
 ## 🔬 Fases del Pipeline de Forecasting
 

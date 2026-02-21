@@ -59,14 +59,15 @@ Para garantizar la calidad del pipeline, se aplican las siguientes leyes de limp
 ## 5. ⚙️ Metodología de Trabajo Industrializada (Production-First)
 Se adopta un enfoque lineal y riguroso para garantizar que la lógica de producción sea la base de toda experimentación:
 
-1.  **Configuración y Parametrización:** Todo cambio nace en `config.yaml`. Se definen rutas, reglas de negocio e hiperparámetros. Prohibido el uso de valores "hardcoded".
-2.  **Desarrollo del Core Técnico (`src/`):** La lógica de procesamiento, modelos y utilidades se escribe directamente en módulos profesionales dentro de `src/`.
-3.  **Orquestación de Producción (`main.py`):** Se integra la lógica en el orquestador principal para asegurar una ejecución determinística desde la terminal.
-4.  **Generación de Salidas Oficiales (`outputs/`):** La ejecución en producción genera reportes JSON y artefactos oficiales en la carpeta `outputs/`.
-5.  **Validación Rigurosa (`tests/`):** Creación y ejecución de pruebas unitarias para garantizar que la lógica del Paso 2 cumpla con los contratos y reglas del negocio.
-6.  **Automatización de Laboratorio (`scripts/`):** Creación del script generador (ej: `gen_phase.py`) que construye el notebook de la fase inyectando la lógica de `src/` y configurando el "Modo Laboratorio".
-7.  **Despliegue de Workflow Automático (`.agent/workflows/`):** Creación del archivo de workflow que permite al agente o usuario regenerar el notebook de forma automatizada.
-8.  **Cierre y Sincronización:** Documentación final, commit/push a GitHub y aprobación formal de la fase.
+1.  **Configuración y Parametrización ([CONFIG]):** Todo cambio nace en `config.yaml`. Se definen rutas, reglas de negocio e hiperparámetros. Prohibido el uso de valores "hardcoded".
+2.  **Desarrollo del Core Técnico ([CORE]):** La lógica de procesamiento, modelos y utilidades se escribe directamente en módulos profesionales dentro de `src/`.
+3.  **Pruebas Unitarias ([UNIT-TEST]):** Implementación y aprobación de pruebas unitarias en `tests/unit/` para validar componentes atómicos antes de su integración.
+4.  **Orquestación de Producción ([ORCHESTRATE]):** Se integra la lógica en el orquestador principal (`main.py`) para asegurar una ejecución determinística.
+5.  **Generación de Salidas Oficiales ([PROD-OUT]):** La ejecución en producción genera reportes JSON y artefactos oficiales en la carpeta `outputs/`.
+6.  **Pruebas de Integración ([INTEGRATION-TEST]):** Validación del flujo completo y contratos E2E en `tests/integration/` para asegurar la armonía del pipeline.
+7.  **Automatización de Laboratorio ([GEN-SCRIPT]):** Creación del script generador (ej: `gen_phase.py`) que construye el notebook inyectando la lógica de `src/`.
+8.  **Despliegue de Workflow Automático ([LAB-WORKFLOW]):** Creación del archivo de workflow para generar el notebook de experimentación automatizado.
+9.  **Cierre y Sincronización ([CLOSE]):** Documentación final, commit/push a GitHub y aprobación formal de la fase.
 
 ## 6. 📂 Segregación de Salidas (Ambientes Lab vs. Prod)
 Queda estrictamente prohibido mezclar salidas de experimentación con las de producción:

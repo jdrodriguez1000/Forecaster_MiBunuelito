@@ -18,14 +18,15 @@ Garantiza la inmutabilidad y el orden del flujo de datos:
 ## 🏗️ 2. Metodología de Trabajo Industrializada (Production-First)
 Este es el pilar del desarrollo. No se experimenta en notebooks para luego refactorizar; la lógica de producción es la base y los notebooks son una extensión automatizada para la validación visual.
 
-1.  **Configuración y Parametrización:** Todo cambio nace en `config.yaml`. Se definen rutas, reglas de negocio e hiperparámetros.
-2.  **Desarrollo del Core Técnico (`src/`):** La lógica de procesamiento, modelos y utilidades se escribe directamente en módulos profesionales dentro de `src/`.
-3.  **Orquestación de Producción (`main.py`):** Se integra la lógica en el orquestador principal para asegurar una ejecución determinística desde la terminal.
-4.  **Generación de Salidas Oficiales (`outputs/`):** La ejecución en producción genera reportes JSON y artefactos oficiales en la carpeta `outputs/`.
-5.  **Validación Rigurosa (`tests/`):** Creación y ejecución de pruebas unitarias para garantizar que la lógica del Paso 2 cumpla con los contratos y reglas del negocio.
-6.  **Automatización de Laboratorio (`scripts/`):** Creación de scripts generadores que construyen notebooks inyectando la lógica de `src/` y configurando el modo laboratorio.
-7.  **Despliegue de Workflow Automático (`.agent/workflows/`):** Creación de workflows `.md` para permitir la regeneración automatizada de notebooks.
-8.  **Cierre y Sincronización:** Documentación, auditoría y commit final.
+1.  **Configuración y Parametrización ([CONFIG]):** Todo cambio nace en `config.yaml`. Se definen rutas, reglas de negocio e hiperparámetros.
+2.  **Desarrollo del Core Técnico ([CORE]):** La lógica de procesamiento, modelos y utilidades se escribe directamente en módulos profesionales dentro de `src/`.
+3.  **Pruebas Unitarias ([UNIT-TEST]):** El desarrollo de componentes atómicos debe validarse en `tests/unit/` antes de su integración.
+4.  **Orquestación de Producción ([ORCHESTRATE]):** Se integra la lógica en el orquestador principal (`main.py`) para asegurar una ejecución determinística.
+5.  **Generación de Salidas Oficiales ([PROD-OUT]):** La ejecución en producción genera reportes JSON y artefactos oficiales en la carpeta `outputs/`.
+6.  **Pruebas de Integración ([INTEGRATION-TEST]):** Validación del flujo completo y contratos E2E en `tests/integration/`.
+7.  **Automatización de Laboratorio ([GEN-SCRIPT]):** Creación de scripts generadores que construyen notebooks inyectando la lógica de `src/`.
+8.  **Despliegue de Workflow Automático ([LAB-WORKFLOW]):** Creación de workflows `.md` para permitir la regeneración automatizada de notebooks.
+9.  **Cierre y Sincronización ([CLOSE]):** Documentación, auditoría y commit final.
 
 ## 💻 3. Arquitectura de Código (`src/`)
 Los módulos deben ser genéricos y orientados a objetos:
@@ -39,7 +40,8 @@ Los módulos deben ser genéricos y orientados a objetos:
 
 ## ✅ 4. Capa de Validación y QA (`tests/`)
 Cada fase técnica debe cerrar con pruebas que garanticen la integridad del pipeline:
-*   Mantenimiento de pruebas unitarias en `tests/` con el mismo nombre del módulo: `test_loader.py`, etc.
+*   **Tests Unitarios**: En `tests/unit/` para lógica atómica y contratos de entrada/salida de módulos individuales.
+*   **Tests de Integración**: En `tests/integration/` para flujos E2E, persistencia de datos y consistencia entre fases.
 *   **Herramienta**: Ejecución obligatoria vía `pytest`.
 
 ## ⚙️ 5. Protocolo de Configuración
