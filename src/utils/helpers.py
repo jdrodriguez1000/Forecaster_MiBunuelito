@@ -66,3 +66,24 @@ def save_figure(fig, output_dir, file_prefix, history_dir_name="history"):
     
     return latest_path, hist_path
 
+def save_model(model, output_dir, file_prefix, history_dir_name="history"):
+    """
+    Saves a model (joblib) in two formats:
+    1. Historical: history/file_prefix_YYYYMMDD_HHMMSS.pkl
+    2. Pointer: file_prefix_latest.pkl
+    """
+    import joblib
+    os.makedirs(output_dir, exist_ok=True)
+    hist_full_dir = os.path.join(output_dir, history_dir_name)
+    os.makedirs(hist_full_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    hist_path = os.path.join(hist_full_dir, f"{file_prefix}_{timestamp}.pkl")
+    latest_path = os.path.join(output_dir, f"{file_prefix}_latest.pkl")
+    
+    # Save both versions
+    joblib.dump(model, latest_path)
+    joblib.dump(model, hist_path)
+    
+    return latest_path, hist_path
