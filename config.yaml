@@ -6,7 +6,7 @@ general:
   paths:
     raw: "data/01_raw"
     cleansed: "data/02_cleansed"
-    features: "data/03_features"
+    features: "data/04_processed"
     processed: "data/04_processed"
     models: "outputs/models"
     reports: "outputs/reports"
@@ -231,8 +231,66 @@ eda:
     palette: "viridis"
 
 features:
-  projection_method: "recursive_moving_average"
-  window_size: 2
+  # Lógica de Proyección (Regla 3.3)
+  projection:
+    method: "recursive_moving_average"
+    window_size: 2
+    columns_to_project: 
+      - "ipc_mensual"
+      - "confianza_consumidor"
+      - "trm_promedio"
+      - "tasa_desempleo"
+      - "costo_insumos_index"
+
+  # Definición de Atributos a Construir
+  engineering:
+    # 1. Calendario y Ciclicidad
+    cyclical:
+      month: {period: 12}
+      quarter: {period: 4}
+      semester: {period: 2}
+    
+    # 2. Eventos Especiales (Basado en Reglas de Negocio)
+    events:
+      pandemia:
+        start: "2020-04-01"
+        end: "2021-05-31"
+      novenas:
+        month: 12
+        start_day: 16
+        end_day: 23
+        total_days: 8
+      bonus_months: [6, 12] # Junio y Diciembre (Primas)
+    
+    # 3. Métricas de Intensidad de Tiempo
+    calendar_technical:
+      calculate_days_in_month: true
+      calculate_weekend_days: true
+      country_holidays: "Colombia" # Para holidays_count
+
+    # 4. Tendencia
+    trend:
+      include_time_drift: true
+
+  # Selección final de variables exógenas para el modelo
+  exogenous_selection:
+    - "month_sin"
+    - "month_cos"
+    - "quarter_sin"
+    - "quarter_cos"
+    - "is_pandemic"
+    - "novenas_intensity"
+    - "is_bonus_month"
+    - "days_in_month"
+    - "weekend_days_count"
+    - "holidays_count"
+    - "time_drift_index"
+    - "es_promo"
+    - "precio_unitario_full"
+    - "ipc_mensual"
+    - "confianza_consumidor"
+    - "inversion_facebook"
+    - "inversion_instagram"
 
 modeling:
   strategy: "ForecasterDirect"

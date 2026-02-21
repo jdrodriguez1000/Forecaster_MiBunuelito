@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import sys
 import logging
 import os
@@ -9,6 +9,7 @@ from src.loader import DataLoader
 from src.validator import BusinessValidator
 from src.preprocessor import Preprocessor
 from src.explorer import DataExplorer
+from src.features import FeatureEngineer
 
 def main(args_list=None):
     parser = argparse.ArgumentParser(description="Mi Buñuelito Forecasting Orchestrator")
@@ -32,9 +33,9 @@ def main(args_list=None):
         logger.info(f"🚀 Iniciando fase individual: {args.phase}")
     else:
         if args.mode == "train":
-            phases_to_run = ["discovery", "financial_audit", "preprocessing", "eda"] # Se a\u00f1adir\u00e1n 'features' y 'modeling'
+            phases_to_run = ["discovery", "financial_audit", "preprocessing", "eda", "features", "modeling"] # Se a\u00f1adir\u00e1n 'features' y 'modeling'
         else: # forecast mode
-            phases_to_run = ["discovery", "preprocessing", "inference"] # Se a\u00f1adir\u00e1 'features' antes de 'inference'
+            phases_to_run = ["discovery", "preprocessing", "features", "inference"] # Se a\u00f1adir\u00e1 'features' antes de 'inference'
             
         logger.info(f"🚀 Iniciando Pipeline ({args.mode}): {', '.join(phases_to_run)}")
 
@@ -139,7 +140,19 @@ def _run_eda(config, base_reports_path, logger):
 
 def _run_features(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: FEATURES ---")
-    logger.warning("🚧 Fase FEATURES en desarrollo. Implementaci\u00f3n pendiente.")
+    
+    # 1. Cargar Master Cleansed
+    cleansed_path = os.path.join(config["general"]["paths"]["cleansed"], "master_cleansed.parquet")
+    if not os.path.exists(cleansed_path):
+        raise FileNotFoundError(f"No se encontró el archivo maestro en {cleansed_path}. Ejecuta la fase de preprocesamiento primero.")
+    
+    df = pd.read_parquet(cleansed_path)
+    
+    # 2. Ejecutar FeatureEngineer
+    engineer = FeatureEngineer(config)
+    df_features = engineer.engineer(df)
+    
+    logger.info(f"✅ Feature Engineering completado. Dataset enriquecido con {df_features.shape[1]} variables y {len(df_features)} registros.")
 
 def _run_modeling(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: MODELING ---")

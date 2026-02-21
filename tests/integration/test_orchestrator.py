@@ -70,6 +70,30 @@ def test_orchestrator_phase_eda(integration_config, mock_supabase_responses):
     assert os.path.exists(figures_dir)
     assert len(os.listdir(figures_dir)) > 0
 
+def test_orchestrator_phase_features(integration_config, mock_supabase_responses):
+    """
+    Verifica que el orquestador ejecute la fase FEATURES correctamente.
+    """
+    # 1. Preparar datos (Master Cleansed)
+    import pandas as pd
+    from src.preprocessor import Preprocessor
+    preprocessor = Preprocessor(integration_config)
+    df_cleansed = preprocessor.process(mock_supabase_responses) 
+    
+    # 2. Ejecutar Features vía Orchestrator
+    test_args = ["--phase", "features"]
+    with patch("src.utils.config_loader.load_config", return_value=integration_config), \
+         patch("main.load_config", return_value=integration_config):
+        main(test_args)
+        
+    # 3. Verificar resultados
+    report_dir = os.path.join(integration_config["general"]["paths"]["reports"], "phase_04_feature_engineering")
+    assert os.path.exists(os.path.join(report_dir, "phase_04_feature_engineering_latest.json"))
+    
+    # Verificar existencia del dataset generado
+    features_path = os.path.join(integration_config["general"]["paths"]["features"], "master_features.parquet")
+    assert os.path.exists(features_path)
+
 def test_orchestrator_invalid_phase():
     """
     Verifica que el orquestador falla ante una fase inexistente (validación de argparse).
@@ -80,19 +104,25 @@ def test_orchestrator_invalid_phase():
 
 def test_orchestrator_modes(integration_config):
     """
-    Verifica que el orquestador acepta los modos train y forecast.
+    Verifica que el orquestador acepta los modos train y forecast y enruta correctamente.
     """
     # Probar modo train (explícito)
     test_args = ["--mode", "train", "--phase", "features"]
+    
+    # Mockeamos _run_features para que no intente leer el disco
     with patch("main.load_config", return_value=integration_config), \
-         patch("main.setup_logging"):
-        main(test_args) # No debería fallar
+         patch("main.setup_logging"), \
+         patch("main._run_features") as mock_run:
+        main(test_args)
+        assert mock_run.called
 
     # Probar modo forecast
     test_args = ["--mode", "forecast", "--phase", "inference"]
+    # Mockeamos print o logger para verificar que llega al warning de inferencia
     with patch("main.load_config", return_value=integration_config), \
          patch("main.setup_logging"):
-        main(test_args) # No debería fallar
+        # Inference aún no está implementado y main imprime un warning
+        main(test_args) 
 
     # Probar modo inválido
     test_args = ["--mode", "invalid"]
