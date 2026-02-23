@@ -74,7 +74,27 @@ def test_pipeline_full_integration(integration_config, mock_supabase_responses):
     assert df_features.shape[0] == master_df.shape[0]
     assert df_features.shape[1] > master_df.shape[1]
     
-    # --- PASO 5: VALIDACIONES FINALES ---
+    # IMPORTANTE: Guardar en disco para que el Trainer lo encuentre
+    processed_dir = integration_config["general"]["paths"]["processed"]
+    os.makedirs(processed_dir, exist_ok=True)
+    df_features.to_parquet(os.path.join(processed_dir, "master_features.parquet"))
+    
+    # --- PASO 5: MOCK DE MODELING ---
+    from src.trainer import ForecasterTrainer
+    
+    # Inyectar configuración de integración para que el constructor de Trainer la tome
+    with patch("src.trainer.load_config", return_value=integration_config), \
+         patch("src.utils.helpers.save_report", wraps=save_report):
+        
+        trainer = ForecasterTrainer()
+        trainer.load_and_split_data()
+        trainer.run_baselines()
+        trainer.run_all_experiments()
+        trainer.save_final_report()
+        trainer.retrain_and_save_champion()
+        trainer.generate_champion_diagnostics()
+        
+    # --- PASO 6: VALIDACIONES FINALES ---
     # 1. El archivo maestro cleansed debe existir
     cleansed_path = os.path.join(integration_config["general"]["paths"]["cleansed"], "master_cleansed.parquet")
     assert os.path.exists(cleansed_path)
@@ -83,29 +103,27 @@ def test_pipeline_full_integration(integration_config, mock_supabase_responses):
     features_path = os.path.join(integration_config["general"]["paths"]["features"], "master_features.parquet")
     assert os.path.exists(features_path)
     
-    # 3. El archivo maestro debe ser mensual (aprox 60 meses)
+    # 3. El modelo champion debe existir
+    models_dir = integration_config["general"]["paths"]["models"]
+    assert os.path.exists(os.path.join(models_dir, "champion_forecaster_latest.pkl"))
+    
+    # 4. El archivo maestro debe ser mensual (aprox 60 meses)
     assert len(df_features) >= 59 
     
-    # 4. Verificamos presencia de componentes clave (Ventas, Redes, Macro, Features)
+    # 5. Verificamos presencia de componentes clave (Ventas, Redes, Macro, Features)
     cols = df_features.columns
     assert "total_unidades_entregadas" in cols
     assert "month_sin" in cols
     assert "time_drift_index" in cols
     
-    # 5. Verificamos que los reportes de fase se generaron en la ruta temporal
+    # 6. Verificamos que los reportes de fase se generaron en la ruta temporal
     reports_base = integration_config["general"]["paths"]["reports"]
-    report_dir_v1 = os.path.join(reports_base, "phase_01_discovery")
-    report_dir_v2 = os.path.join(reports_base, "phase_02_preprocessing")
-    report_dir_v3 = os.path.join(reports_base, "phase_03_eda")
-    report_dir_v4 = os.path.join(reports_base, "phase_04_feature_engineering")
+    phases = ["phase_01_discovery", "phase_02_preprocessing", "phase_03_eda", "phase_04_feature_engineering", "phase_05_modeling"]
     
-    assert os.path.exists(report_dir_v1)
-    assert os.path.exists(report_dir_v2)
-    assert os.path.exists(report_dir_v3)
-    assert os.path.exists(report_dir_v4)
+    for phase in phases:
+        assert os.path.exists(os.path.join(reports_base, phase))
 
-    # 5. Verificar que hay figuras en EDA
+    # 7. Verificar que hay figuras en EDA y Modeling
     figures_base = integration_config["general"]["paths"]["figures"]
-    eda_fig_dir = os.path.join(figures_base, "phase_03_eda")
-    assert os.path.exists(eda_fig_dir)
-    assert len(os.listdir(eda_fig_dir)) > 0
+    assert len(os.listdir(os.path.join(figures_base, "phase_03_eda"))) > 0
+    assert len(os.listdir(os.path.join(figures_base, "phase_05_modeling"))) > 0

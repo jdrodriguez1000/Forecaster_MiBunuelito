@@ -1,4 +1,6 @@
-﻿import argparse
+﻿import matplotlib
+matplotlib.use('Agg')
+import argparse
 import sys
 import logging
 import os
@@ -10,6 +12,7 @@ from src.validator import BusinessValidator
 from src.preprocessor import Preprocessor
 from src.explorer import DataExplorer
 from src.features import FeatureEngineer
+from src.trainer import ForecasterTrainer
 
 def main(args_list=None):
     parser = argparse.ArgumentParser(description="Mi Buñuelito Forecasting Orchestrator")
@@ -156,7 +159,23 @@ def _run_features(config, base_reports_path, logger):
 
 def _run_modeling(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: MODELING ---")
-    logger.warning("🚧 Fase MODELING en desarrollo. Implementaci\u00f3n pendiente.")
+    
+    # 1. Instanciar Trainer
+    trainer = ForecasterTrainer()
+    
+    # 2. Pipeline de Modelado
+    trainer.load_and_split_data()
+    trainer.run_baselines()
+    trainer.run_all_experiments()
+    
+    # 3. Finalizar y Reportar
+    trainer.save_final_report()
+    
+    # 4. Champion y Diagnósticos
+    trainer.retrain_and_save_champion()
+    trainer.generate_champion_diagnostics()
+    
+    logger.info("✅ Modeling completado. Champion guardado y diagnósticos generados.")
 
 def _run_inference(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: INFERENCE (FORECAST MODE) ---")

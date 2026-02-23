@@ -18,7 +18,7 @@ def integration_config(tmp_path):
     Carga de configuración base y sobreescritura con rutas temporales para integración.
     """
     config_path = os.path.join(os.getcwd(), "config.yaml")
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
     
     # Sobreescribir rutas para que apunten al directorio temporal
@@ -38,6 +38,24 @@ def integration_config(tmp_path):
     config["eda"]["partitioning"]["test_size"] = 10
     config["eda"]["partitioning"]["val_size"] = 10
     config["eda"]["time_series"]["autocorrelation"]["max_lags"] = 10
+    
+    # Ajustar parámetros de modeling para velocidad en integración
+    config["training_parameters"]["models_to_train"] = ["LightGBM", "Ridge"]
+    config["training_parameters"]["hyperparameter_grids"] = {
+        "LightGBM": {"n_estimators": [5, 10], "learning_rate": [0.1]},
+        "Ridge": {"alpha": [1.0]}
+    }
+    config["training_parameters"]["grid_search_cv_params"]["n_iter"] = 1
+    
+    # Simplificar experimentos en config
+    if "experiments" in config:
+        for exp in config["experiments"]:
+            exp["enabled"] = False # Deshabilitar todos por defecto
+        
+        # Habilitar solo un experimento simple para test
+        config["experiments"][0]["enabled"] = True
+        config["experiments"][0]["models_to_train"] = ["LightGBM"]
+        config["experiments"][0]["forecasting_parameters"]["lags_grid"] = [[1, 2]]
     
     return config
 

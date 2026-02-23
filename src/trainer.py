@@ -1,10 +1,12 @@
+import matplotlib
+matplotlib.use('Agg') # Evita RuntimeError: main thread is not in main loop
 import os
 import pandas as pd
 import numpy as np
 import logging
 import warnings
 from datetime import datetime
-from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, mean_squared_error
 from sklearn.preprocessing import PowerTransformer
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
 from sklearn.linear_model import Ridge
@@ -144,14 +146,9 @@ class ForecasterTrainer:
             forecaster.fit(y=self.data_train[self.target])
             
             predictions_val = forecaster.predict(steps=len(self.data_val))
+            # VAL METRICS ONLY (Anti-Data Leakage)
             mae_val = mean_absolute_error(self.data_val[self.target], predictions_val)
             mape_val = mean_absolute_percentage_error(self.data_val[self.target], predictions_val)
-            
-            data_train_val = pd.concat([self.data_train, self.data_val])
-            forecaster.fit(y=data_train_val[self.target])
-            predictions_test = forecaster.predict(steps=len(self.data_test))
-            mae_test = mean_absolute_error(self.data_test[self.target], predictions_test)
-            mape_test = mean_absolute_percentage_error(self.data_test[self.target], predictions_test)
             
             baseline_result = {
                 "name": name,
@@ -159,10 +156,6 @@ class ForecasterTrainer:
                 "metrics_val": {
                     "mae": float(mae_val),
                     "mape": float(mape_val)
-                },
-                "metrics_test": {
-                    "mae": float(mae_test),
-                    "mape": float(mape_test)
                 }
             }
             self.report["baselines"].append(baseline_result)
@@ -171,10 +164,9 @@ class ForecasterTrainer:
             self.all_candidates.append({
                 "name": name,
                 "metrics_val": baseline_result["metrics_val"],
-                "metrics_test": baseline_result["metrics_test"],
                 "forecaster": forecaster
             })
-            logger.info(f"Baseline {name} finished. Val MAPE: {mape_val:.2%}, Test MAPE: {mape_test:.2%}")
+            logger.info(f"Baseline {name} finished. Val MAPE: {mape_val:.2%}")
 
     def _run_generic_experiment(self, exp_config, is_endogenous=False):
         """
@@ -302,27 +294,7 @@ class ForecasterTrainer:
                 "transformation": self.best_transformer_name
             }
 
-        # Final Backtesting on Test set
-        data_all = pd.concat([self.data_train, self.data_val, self.data_test])
-        
-        diff_winner = int(winner_row['differentiation']) if pd.notnull(winner_row['differentiation']) else None
-        
-        cv_test = TimeSeriesFold(
-            initial_train_size=len(self.data_train) + len(self.data_val),
-            steps=self.horizon,
-            refit=False, fixed_train_size=False,
-            differentiation=diff_winner
-        )
-        
-        exog_all = data_all[exog_cols] if exog_cols else None
-        metrics_test, _ = backtesting_forecaster(
-            forecaster=winner_row['forecaster'],
-            y=data_all[self.target],
-            exog=exog_all,
-            cv=cv_test,
-            metric=['mean_absolute_error', 'mean_absolute_percentage_error'],
-            verbose=False
-        )
+        # 4. Report (Validation Only)
 
         # 4. Report
         combinations_list = []
@@ -345,16 +317,14 @@ class ForecasterTrainer:
             "best_params": winner_row['best_params'],
             "best_lags": winner_row['best_lags'],
             "metrics_val": {"mae": float(winner_row['mae_val']), "mape": float(winner_row['mape_val'])},
-            "metrics_test": {"mae": float(metrics_test.iloc[0, 0]), "mape": float(metrics_test.iloc[0, 1])},
             "all_combinations": combinations_list
         }
         self.report["experiments"].append(experiment_result)
 
-        # Update Candidates List
+        # Update Candidates List (Validation only)
         self.all_candidates.append({
             "name": f"{exp_name}_{winner_row['model']}",
             "metrics_val": experiment_result["metrics_val"],
-            "metrics_test": experiment_result["metrics_test"],
             "best_params": winner_row['best_params'],
             "best_lags": winner_row['best_lags'],
             "preprocessing": {
@@ -396,14 +366,71 @@ class ForecasterTrainer:
                 self.champion_obj = best
                 logger.info(f"Champion Logic: Selecting #1 as Champion: {self.champion_obj['name']}")
             
-            # 1.1 Create a clean Top 3 for JSON (no non-serializable objects)
+            # 1.1 Create a clean Top 3 for JSON (no non-serializable objects and NO metrics_test)
             self.report["candidate_models"] = []
             for cand in sorted_candidates[:3]:
-                clean_cand = {k: v for k, v in cand.items() if k != 'forecaster'}
+                clean_cand = {k: v for k, v in cand.items() if k not in ['forecaster', 'metrics_test']}
                 self.report["candidate_models"].append(clean_cand)
             
-            # 1.2 Create a clean Champion for JSON
+            # 1.2 Calculate Test Metrics ONLY for Champion (Post-Selection)
+            logger.info(f"Calculating Test metrics for Champion: {self.champion_obj['name']}")
+            
+            data_train_val = pd.concat([self.data_train, self.data_val])
+            exog_cols = self.champion_obj.get('exog_cols', [])
+            exog_all = self.data_train_val_test[exog_cols] if exog_cols else None
+            
+            diff_val = self.champion_obj.get('preprocessing', {}).get('differentiation')
+            cv_test = TimeSeriesFold(
+                initial_train_size=len(data_train_val),
+                steps=self.horizon,
+                refit=False,
+                allow_incomplete_fold=True,
+                differentiation=diff_val
+            )
+            
+            metrics_test, preds_df = backtesting_forecaster(
+                forecaster=self.champion_obj['forecaster'],
+                y=self.data_train_val_test[self.target],
+                exog=exog_all,
+                cv=cv_test,
+                metric=['mean_absolute_error', 'mean_absolute_percentage_error'],
+                interval=[5, 95],
+                n_boot=250,
+                verbose=False
+            )
+            
+            # 1.3 Create comparative table (Real vs Prediction)
+            y_test = self.data_train_val_test[self.target].iloc[len(data_train_val):]
+            table_rows = []
+            for date, real in y_test.items():
+                if date in preds_df.index:
+                    pred = preds_df.loc[date, 'pred']
+                    lower = preds_df.loc[date, 'lower_bound'] if 'lower_bound' in preds_df.columns else None
+                    upper = preds_df.loc[date, 'upper_bound'] if 'upper_bound' in preds_df.columns else None
+                    
+                    abs_error = abs(real - pred)
+                    deviation = (abs_error / real) * 100 if real != 0 else 0
+                    
+                    row = {
+                        "Fecha": date.strftime('%Y-%m-%d'),
+                        "Real": float(real),
+                        "Prediccion": float(pred),
+                        "Error absoluto": float(abs_error),
+                        "Desviacion": float(deviation)
+                    }
+                    if lower is not None:
+                        row["Limite Inferior (5%)"] = float(lower)
+                        row["Limite Superior (95%)"] = float(upper)
+                    
+                    table_rows.append(row)
+
+            # 1.4 Create a clean Champion for JSON with metrics_test and comparative table
             self.report["champion_model"] = {k: v for k, v in self.champion_obj.items() if k != 'forecaster'}
+            self.report["champion_model"]["metrics_test"] = {
+                "mae": float(metrics_test.iloc[0, 0]),
+                "mape": float(metrics_test.iloc[0, 1])
+            }
+            self.report["champion_model"]["test_comparative_table"] = table_rows
 
         # 2. Save Report
         logger.info(f"Saving final modeling report to {self.reports_dir}")
@@ -450,24 +477,60 @@ class ForecasterTrainer:
                 exog=exog_train_val_test,
                 cv=cv_test,
                 metric='mean_absolute_error',
+                interval=[5, 95],
+                n_boot=250,
                 verbose=False
             )
             # predictions in skforecast backtesting have a 'pred' column
             preds = preds_df['pred']
+            lower_bound = preds_df['lower_bound'] if 'lower_bound' in preds_df.columns else None
+            upper_bound = preds_df['upper_bound'] if 'upper_bound' in preds_df.columns else None
         except Exception as e:
             logger.warning(f"Backtesting failed for visual comparison: {e}. Attempting direct predict.")
             # Fallback for simple models like Naive if they don't support backtesting or have different signatures
             exog_test = self.data_test[exog_cols] if exog_cols else None
             try:
+                # Direct predict often doesn't give intervals unless specifically requested,
+                # but for diagnostics we prefer the backtesting result.
                 preds = forecaster.predict(steps=len(self.data_test), exog=exog_test)
+                lower_bound, upper_bound = None, None
             except:
                 logger.error("Could not generate predictions for visual comparison.")
                 return
         
-        plt.figure(figsize=(10, 5))
-        plt.plot(self.data_test.index, self.data_test[self.target], label='Real', marker='o')
-        plt.plot(preds.index, preds, label='Predicciones', marker='x', linestyle='--')
-        plt.title(f"Comparativa Real vs Predicciones - {name}")
+        # Create Comparative Table for Report
+        y_test = self.data_test[self.target]
+        table_rows = []
+        for date, real in y_test.items():
+            if date in preds.index:
+                pred = preds.loc[date]
+                abs_error = abs(float(real) - float(pred))
+                deviation = (abs_error / float(real)) * 100 if float(real) != 0 else 0
+                
+                row = {
+                    "Fecha": date.strftime('%Y-%m-%d'),
+                    "Real": float(real),
+                    "Prediccion": float(pred),
+                    "Error absoluto": float(abs_error),
+                    "Desviacion": float(deviation)
+                }
+                
+                if lower_bound is not None and date in lower_bound.index:
+                    row["Limite Inferior (5%)"] = float(lower_bound.loc[date])
+                    row["Limite Superior (95%)"] = float(upper_bound.loc[date])
+                
+                table_rows.append(row)
+        
+        if "champion_model" in self.report:
+            self.report["champion_model"]["test_comparative_table"] = table_rows
+            logger.info("Updating final JSON report with comparative table.")
+            save_report(self.report, self.reports_dir, "phase_05_modeling")
+
+        # 3.8.1 Plot Visual Comparison (Original Style)
+        plt.figure(figsize=(12, 6))
+        plt.plot(self.data_test.index, self.data_test[self.target], label='Real', marker='o', color='steelblue')
+        plt.plot(preds.index, preds, label='Predicciones', marker='x', linestyle='--', color='darkorange')
+        plt.title(f"Comparativa Real vs Predicciones - {name}", fontsize=14)
         plt.xlabel("Fecha")
         plt.ylabel("Unidades")
         plt.legend()
@@ -475,29 +538,149 @@ class ForecasterTrainer:
         save_figure(plt.gcf(), fig_phase_dir, "champion_real_vs_pred")
         plt.close()
 
+        # 3.8.2 Plot Confidence Intervals (Dedicated Plot)
+        if lower_bound is not None and upper_bound is not None:
+            plt.figure(figsize=(12, 6))
+            
+            # Predictions
+            plt.plot(preds.index, preds, 
+                     label='Predicción Champion', marker='x', 
+                     linestyle='--', linewidth=2, color='#e67e22', zorder=4)
+            
+            # Confidence Intervals
+            plt.fill_between(
+                preds.index, 
+                lower_bound, 
+                upper_bound, 
+                color='#f39c12', 
+                alpha=0.2, 
+                label='Zona de Incertidumbre (95%)',
+                zorder=2
+            )
+            # Boundary lines
+            plt.plot(preds.index, lower_bound, color='#f39c12', linestyle=':', linewidth=1.5, alpha=0.6, zorder=2)
+            plt.plot(preds.index, upper_bound, color='#f39c12', linestyle=':', linewidth=1.5, alpha=0.6, zorder=2)
+            
+            plt.title(f"Intervalos de Confianza del Pronóstico (95%)\nModelo: {name}", 
+                      fontsize=15, fontweight='bold', pad=15)
+            plt.xlabel("Fecha")
+            plt.ylabel("Unidades")
+            plt.legend(loc='upper right', frameon=True, shadow=True)
+            plt.grid(True, linestyle='--', alpha=0.4)
+            
+            plt.tight_layout()
+            save_figure(plt.gcf(), fig_phase_dir, "champion_confidence_intervals")
+            plt.close()
+
         # 3.9 Advanced Diagnostics
-        # A. Feature Importance
+        # A. Feature Importance / Magnitud de Coeficientes
         try:
-            importance = forecaster.get_feature_importances()
-            if importance is not None:
-                importance = importance.sort_values(by='importance', ascending=False).head(15)
-                plt.figure(figsize=(10, 6))
-                sns.barplot(x='importance', y='feature', data=importance)
-                plt.title(f"Importancia de Variables (Top 15) - {name}")
+            # ForecasterDirect requires the 'step' argument
+            importance_df = forecaster.get_feature_importances(step=1)
+            if importance_df is not None:
+                # Sort and get Top 25
+                importance_df = importance_df.sort_values(by='importance', ascending=False)
+                top_25 = importance_df.head(25)
+                
+                # Plot
+                plt.figure(figsize=(10, 8))
+                sns.barplot(x='importance', y='feature', data=top_25, palette='viridis')
+                plt.title(f"Importancia de Variables (Top 25) - {name}")
+                plt.xlabel("Importancia")
+                plt.ylabel("Variable")
+                plt.tight_layout()
                 save_figure(plt.gcf(), fig_phase_dir, "champion_feature_importance")
                 plt.close()
-        except:
-            logger.warning("Could not generate feature importance for this model type.")
+                
+                # Table for JSON
+                coeff_magnitude = []
+                for _, row in top_25.iterrows():
+                    coeff_magnitude.append({
+                        "Variable": row['feature'],
+                        "Magnitud": float(row['importance'])
+                    })
+                
+                if "champion_model" in self.report:
+                    self.report["champion_model"]["magnitud_coeficientes"] = coeff_magnitude
+                    logger.info("Updating final JSON report with feature importance table.")
+                    save_report(self.report, self.reports_dir, "phase_05_modeling")
+            else:
+                logger.warning("Forecaster returned None for feature importance.")
+        except Exception as e:
+            logger.warning(f"Could not generate feature importance for this model type: {e}")
 
-        # B. Residual Analysis
-        residuals = self.data_test[self.target] - preds
-        plt.figure(figsize=(10, 5))
-        plt.scatter(preds, residuals, alpha=0.5)
-        plt.axhline(0, color='red', linestyle='--')
-        plt.title(f"Análisis de Residuos - {name}")
-        plt.xlabel("Predicciones")
-        plt.ylabel("Residuos")
-        save_figure(plt.gcf(), fig_phase_dir, "champion_residuals")
+        # B. Residual Analysis (Advanced)
+        y_test = self.data_test[self.target]
+        residuals = y_test - preds
+        
+        # Calculate Detailed Statistics
+        n_points = len(residuals)
+        under_f = residuals[residuals > 0]
+        over_f = residuals[residuals < 0]
+        
+        mae_val = mean_absolute_error(y_test, preds)
+        rmse_val = np.sqrt(mean_squared_error(y_test, preds))
+        
+        res_stats = {
+            "total_puntos": int(n_points),
+            "under_forecasting": {
+                "puntos": int(len(under_f)),
+                "porcentaje": float(len(under_f) / n_points * 100)
+            },
+            "over_forecasting": {
+                "puntos": int(len(over_f)),
+                "porcentaje": float(len(over_f) / n_points * 100)
+            },
+            "error_max_subestimacion": float(residuals.max()),
+            "error_min_sobreestimacion": float(residuals.min()),
+            "media_error": float(residuals.mean()),
+            "mediana_error": float(residuals.median()),
+            "desviacion_estandar_error": float(residuals.std()),
+            "mae_periodo": float(mae_val),
+            "rmse_periodo": float(rmse_val)
+        }
+        
+        if "champion_model" in self.report:
+            self.report["champion_model"]["analisis_residuos"] = res_stats
+            logger.info("Updating final JSON report with residual analysis statistics.")
+            save_report(self.report, self.reports_dir, "phase_05_modeling")
+            
+        # Logging pretty stats
+        logger.info("\n" + "="*40 + "\n" +
+                    "📋 ESTADÍSTICAS DETALLADAS DE RESIDUOS\n" +
+                    "-"*40 + "\n" +
+                    f"🔹 Total de puntos analizados: {res_stats['total_puntos']}\n" +
+                    f"🔹 Under-forecasting: {res_stats['under_forecasting']['puntos']} puntos ({res_stats['under_forecasting']['porcentaje']:.1f}%)\n" +
+                    f"🔹 Over-forecasting: {res_stats['over_forecasting']['puntos']} puntos ({res_stats['over_forecasting']['porcentaje']:.1f}%)\n" +
+                    f"🔹 Error Máximo: {res_stats['error_max_subestimacion']:,.2f}\n" +
+                    f"🔹 Error Mínimo: {res_stats['error_min_sobreestimacion']:,.2f}\n" +
+                    "-"*40 + "\n" +
+                    f"📈 Media del error: {res_stats['media_error']:,.2f}\n" +
+                    f"📉 Mediana del error: {res_stats['mediana_error']:,.2f}\n" +
+                    f"📏 Desviación estándar: {res_stats['desviacion_estandar_error']:,.2f}\n" +
+                    f"🎯 MAE del periodo: {res_stats['mae_periodo']:,.2f}\n" +
+                    f"🧪 RMSE del periodo: {res_stats['rmse_periodo']:,.2f}\n" +
+                    "="*40)
+
+        # Plot Residual Analysis
+        fig, ax = plt.subplots(1, 2, figsize=(16, 6))
+        
+        # Left: Distribution
+        sns.histplot(residuals, kde=True, ax=ax[0], color='#76b5b5')
+        ax[0].axvline(0, color='red', linestyle='--', linewidth=3)
+        ax[0].set_title("Distribución de Errores (Residuos)", fontsize=14)
+        ax[0].set_xlabel("Residual (Real - Predicción)")
+        
+        # Right: Evolution in time
+        ax[1].plot(y_test.index, residuals, marker='o', color='indigo', linewidth=3)
+        ax[1].axhline(0, color='red', linestyle='--', linewidth=3)
+        ax[1].set_title("Evolución del Error en el Tiempo", fontsize=14)
+        ax[1].set_xlabel("Fecha")
+        ax[1].set_ylabel("Residual")
+        plt.setp(ax[1].xaxis.get_majorticklabels(), rotation=45)
+        
+        plt.tight_layout()
+        save_figure(fig, fig_phase_dir, "champion_residuals")
         plt.close()
 
     def retrain_and_save_champion(self):
