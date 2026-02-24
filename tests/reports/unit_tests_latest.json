@@ -1,0 +1,243 @@
+{
+    "phase": "testing",
+    "test_type": "unit_tests",
+    "timestamp": "2026-02-24T14:27:14.768934",
+    "description": "Automated test execution report for unit_tests",
+    "summary": {
+        "total_collected": 38,
+        "passed": 38,
+        "failed": 0,
+        "skipped": 0,
+        "exit_status": 0
+    },
+    "results": [
+        {
+            "node_id": "tests/unit/test_db_connector.py::test_db_connector_init_success",
+            "outcome": "passed",
+            "duration_secs": 0.001,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_db_connector.py::test_db_connector_init_failure",
+            "outcome": "passed",
+            "duration_secs": 0.0011,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_db_connector.py::test_db_connector_get_client_singleton",
+            "outcome": "passed",
+            "duration_secs": 0.001,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_db_connector.py::test_db_connector_get_client_error",
+            "outcome": "passed",
+            "duration_secs": 0.0013,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_explorer.py::test_step_01_split_data",
+            "outcome": "passed",
+            "duration_secs": 0.0008,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_explorer.py::test_step_02_profile_drift",
+            "outcome": "passed",
+            "duration_secs": 0.0012,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_explorer.py::test_step_03_analyze_calendar",
+            "outcome": "passed",
+            "duration_secs": 0.5432,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_explorer.py::test_step_04_decompose_series",
+            "outcome": "passed",
+            "duration_secs": 0.4603,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_explorer.py::test_step_05_analyze_autocorrelation",
+            "outcome": "passed",
+            "duration_secs": 0.2137,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_explorer.py::test_step_06_verify_stationarity",
+            "outcome": "passed",
+            "duration_secs": 0.0036,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_explorer.py::test_step_07_validate_business_events",
+            "outcome": "passed",
+            "duration_secs": 0.0019,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_explorer.py::test_full_run_eda",
+            "outcome": "passed",
+            "duration_secs": 1.266,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_features.py::test_cyclical_features",
+            "outcome": "passed",
+            "duration_secs": 0.0028,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_features.py::test_event_features",
+            "outcome": "passed",
+            "duration_secs": 0.0026,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_features.py::test_engineer_pipeline_no_extension",
+            "outcome": "passed",
+            "duration_secs": 0.0062,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_features.py::test_internal_projection_logic",
+            "outcome": "passed",
+            "duration_secs": 0.0089,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_loader.py::test_dataloader_init",
+            "outcome": "passed",
+            "duration_secs": 0.0017,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_loader.py::test_fetch_all_with_pagination",
+            "outcome": "passed",
+            "duration_secs": 0.0035,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_loader.py::test_load_and_audit_incremental",
+            "outcome": "passed",
+            "duration_secs": 0.007,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_preprocessor.py::test_step_01_validate_contracts",
+            "outcome": "passed",
+            "duration_secs": 0.0013,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_preprocessor.py::test_step_02_drop_immediate",
+            "outcome": "passed",
+            "duration_secs": 0.001,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_preprocessor.py::test_step_03_anti_leakage",
+            "outcome": "passed",
+            "duration_secs": 0.0014,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_preprocessor.py::test_step_04_handle_duplicates",
+            "outcome": "passed",
+            "duration_secs": 0.0047,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_preprocessor.py::test_step_05_sentinels_to_null",
+            "outcome": "passed",
+            "duration_secs": 0.0025,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_preprocessor.py::test_step_06_reindex_gaps",
+            "outcome": "passed",
+            "duration_secs": 0.0018,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_preprocessor.py::test_step_08_recalculate_target",
+            "outcome": "passed",
+            "duration_secs": 0.0011,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_preprocessor.py::test_full_process",
+            "outcome": "passed",
+            "duration_secs": 0.0399,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_trainer.py::test_trainer_init",
+            "outcome": "passed",
+            "duration_secs": 0.0004,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_trainer.py::test_load_and_split_data",
+            "outcome": "passed",
+            "duration_secs": 0.0008,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_trainer.py::test_get_feature_importances_ridge",
+            "outcome": "passed",
+            "duration_secs": 0.0009,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_trainer.py::test_save_intermediate_report",
+            "outcome": "passed",
+            "duration_secs": 0.0004,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_trainer.py::test_retrain_and_save_champion_minimal",
+            "outcome": "passed",
+            "duration_secs": 0.0092,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_trainer.py::test_save_final_report_logic",
+            "outcome": "passed",
+            "duration_secs": 0.0005,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_trainer.py::test_run_preprocessing_tournament_minimal",
+            "outcome": "passed",
+            "duration_secs": 0.0019,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_validator.py::test_validator_success",
+            "outcome": "passed",
+            "duration_secs": 0.022,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_validator.py::test_validator_income_logic_fail",
+            "outcome": "passed",
+            "duration_secs": 0.021,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_validator.py::test_validator_redes_sum_fail",
+            "outcome": "passed",
+            "duration_secs": 0.0208,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_validator.py::test_validator_missing_table",
+            "outcome": "passed",
+            "duration_secs": 0.0164,
+            "error": null
+        }
+    ]
+}

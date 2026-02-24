@@ -1,0 +1,87 @@
+{
+    "phase": "testing",
+    "test_type": "integration_tests",
+    "timestamp": "2026-02-24T14:27:56.122626",
+    "description": "Automated test execution report for integration_tests",
+    "summary": {
+        "total_collected": 12,
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "exit_status": 0
+    },
+    "results": [
+        {
+            "node_id": "tests/integration/test_anti_leakage_integration.py::test_anti_leakage_strict_compliance",
+            "outcome": "passed",
+            "duration_secs": 0.0409,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_modeling_tournament.py::test_modeling_tournament_full_run",
+            "outcome": "passed",
+            "duration_secs": 4.0606,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_modeling_tournament.py::test_modeling_tournament_candidate_flow",
+            "outcome": "passed",
+            "duration_secs": 0.5939,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_orchestrator.py::test_orchestrator_phase_routing",
+            "outcome": "passed",
+            "duration_secs": 0.272,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_orchestrator.py::test_orchestrator_phase_eda",
+            "outcome": "passed",
+            "duration_secs": 1.6036,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_orchestrator.py::test_orchestrator_phase_features",
+            "outcome": "passed",
+            "duration_secs": 0.424,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_orchestrator.py::test_orchestrator_phase_modeling",
+            "outcome": "passed",
+            "duration_secs": 2.624,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_orchestrator.py::test_orchestrator_invalid_phase",
+            "outcome": "passed",
+            "duration_secs": 0.0014,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_orchestrator.py::test_orchestrator_modes",
+            "outcome": "passed",
+            "duration_secs": 0.0031,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_pipeline_e2e.py::test_pipeline_full_integration",
+            "outcome": "passed",
+            "duration_secs": 4.0628,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_pipeline_integrity.py::test_dual_persistence_logic",
+            "outcome": "passed",
+            "duration_secs": 0.0023,
+            "error": null
+        },
+        {
+            "node_id": "tests/integration/test_pipeline_integrity.py::test_cascading_contract_integrity",
+            "outcome": "passed",
+            "duration_secs": 0.0008,
+            "error": null
+        }
+    ]
+}

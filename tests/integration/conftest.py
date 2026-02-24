@@ -50,12 +50,24 @@ def integration_config(tmp_path):
     # Simplificar experimentos en config
     if "experiments" in config:
         for exp in config["experiments"]:
-            exp["enabled"] = False # Deshabilitar todos por defecto
-        
-        # Habilitar solo un experimento simple para test
-        config["experiments"][0]["enabled"] = True
-        config["experiments"][0]["models_to_train"] = ["LightGBM"]
-        config["experiments"][0]["forecasting_parameters"]["lags_grid"] = [[1, 2]]
+            # Habilitar todos los pasos del torneo para que el flujo sea completo
+            exp["enabled"] = True
+            
+            # Sobreescribir parámetros para máxima velocidad
+            if "models_to_train" in exp:
+                exp["models_to_train"] = ["LightGBM"]
+            
+            if "forecasting_parameters" in exp and "lags_grid" in exp["forecasting_parameters"]:
+                exp["forecasting_parameters"]["lags_grid"] = [[1, 2]]
+            
+            if "preprocessing_options" in exp:
+                if "transformations" in exp["preprocessing_options"]:
+                    exp["preprocessing_options"]["transformations"] = [None]
+                if "differentiation" in exp["preprocessing_options"]:
+                    exp["preprocessing_options"]["differentiation"] = [0]
+            
+            if "advance_criteria" in exp:
+                exp["advance_criteria"]["top_n"] = 1 # Mínimo para avanzar
     
     return config
 
