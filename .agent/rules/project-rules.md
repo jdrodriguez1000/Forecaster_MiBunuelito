@@ -78,6 +78,7 @@ Queda estrictamente prohibido mezclar salidas de experimentación con las de pro
     *   Los reportes JSON finales se guardan en `outputs/reports/` en subcarpetas por fase.
     *   Visualizaciones oficiales en `outputs/figures/`.
     *   Modelos (.pkl), pronósticos y métricas en sus respectivas carpetas raíz de `outputs/`.
+*   **Aislamiento de Pruebas (Test Isolation):** Queda estrictamente prohibido que las pruebas unitarias (`tests/unit/`) o de integración (`tests/integration/`) modifiquen o creen archivos en las carpetas de producción (`outputs/`, `data/02_cleansed`, `data/03_features`, etc.). Toda prueba debe ejecutarse con el parámetro `save=False` o utilizar rutas de salida temporales para validación.
 
 ## 7. 📤 Protocolo de Entregables y Trazabilidad
 *   **Reportes de Fase (Trazabilidad):** Cada proceso debe generar obligatoriamente archivos `.json` siguiendo el **Patrón de Persistencia Dual**:

@@ -25,11 +25,12 @@ class FeatureEngineer:
             "artifacts": {}
         }
 
-    def engineer(self, df: pd.DataFrame):
+    def engineer(self, df: pd.DataFrame, save=True):
         """
         Execute the feature engineering pipeline.
         Args:
             df (pd.DataFrame): Cleansed master dataset with datetime index.
+            save (bool): Whether to save artifacts and reports.
         Returns:
             pd.DataFrame: Enriched dataset with extended horizon.
         """
@@ -57,7 +58,8 @@ class FeatureEngineer:
             df_eng = self._step_04_trend_features(df_eng)
 
             # Step 6: Final check and artifact generation
-            df_eng = self._step_06_generate_artifacts(df_eng)
+            if save:
+                df_eng = self._step_06_generate_artifacts(df_eng)
 
             return df_eng
 
@@ -148,7 +150,7 @@ class FeatureEngineer:
 
     def _step_05_project_exogenous(self, df):
         logger.info("Step 5: Projecting exogenous variables (recursive moving average)...")
-        proj_cfg = self.config['features']['projection']
+        proj_cfg = self.config['inference']['projection']
         horizon = self.config['general']['horizon']
         cols_to_project = proj_cfg['columns_to_project']
         

@@ -14,11 +14,6 @@ def sample_config():
             }
         },
         "features": {
-            "projection": {
-                "method": "recursive_moving_average",
-                "window_size": 2,
-                "columns_to_project": ["macro_var"]
-            },
             "engineering": {
                 "cyclical": {
                     "month": {"period": 12},
@@ -38,6 +33,13 @@ def sample_config():
                 "trend": {
                     "include_time_drift": True
                 }
+            }
+        },
+        "inference": {
+            "projection": {
+                "method": "recursive_moving_average",
+                "window_size": 2,
+                "columns_to_project": ["macro_var"]
             }
         }
     }
@@ -88,7 +90,7 @@ def test_engineer_pipeline_no_extension(sample_config, sample_data):
     as per user requirement.
     """
     engineer = FeatureEngineer(sample_config)
-    df_final = engineer.engineer(sample_data.copy())
+    df_final = engineer.engineer(sample_data.copy(), save=False)
     
     # Must preserve original length
     assert len(df_final) == len(sample_data)
