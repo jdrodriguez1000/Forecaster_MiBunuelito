@@ -11,6 +11,7 @@ def mock_config():
         "general": {
             "paths": {
                 "raw": "data/01_raw",
+                "reports": "outputs/reports",
                 "experiments": {"phase_01": "experiments/phase_01/artifacts"}
             }
         },
@@ -76,3 +77,26 @@ def test_load_and_audit_incremental(mock_config):
                             assert "ventas_diarias" in report["tables"]
                             # La lógica de auditoría debe ser exitosa
                             assert report["tables"]["ventas_diarias"]["structural_integrity"]["contract_fulfilled"]
+
+def test_check_table_sync(mock_config):
+    """Prueba que el detector de desincronía identifica fechas diferentes."""
+    with patch("src.loader.load_config", return_value=mock_config):
+        loader = src.loader.DataLoader()
+        
+        # Simular reportes con fechas sincronizadas
+        sync_reports = {
+            "table1": {"time_series_health": {"date_range": {"max": "2023-01-01"}}},
+            "table2": {"time_series_health": {"date_range": {"max": "2023-01-01"}}}
+        }
+        res_ok = loader._check_table_sync(sync_reports)
+        assert res_ok["synchronized"] is True
+        assert res_ok["status"] == "OK"
+        
+        # Simular reportes con fechas desincronizadas
+        async_reports = {
+            "table1": {"time_series_health": {"date_range": {"max": "2023-01-01"}}},
+            "table2": {"time_series_health": {"date_range": {"max": "2023-02-01"}}}
+        }
+        res_fail = loader._check_table_sync(async_reports)
+        assert res_fail["synchronized"] is False
+        assert res_fail["status"] == "WARNING"

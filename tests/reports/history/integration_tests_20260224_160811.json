@@ -1,0 +1,14 @@
+{
+    "phase": "testing",
+    "test_type": "integration_tests",
+    "timestamp": "2026-02-24T16:08:11.667678",
+    "description": "Automated test execution report for integration_tests",
+    "summary": {
+        "total_collected": 0,
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "exit_status": 4
+    },
+    "results": []
+}

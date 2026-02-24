@@ -1,5 +1,6 @@
 general:
   project_name: "Mi Buñuelito Forecasting"
+  execution_mode: "forecast" # Opciones: "train", "forecast"
   random_state: 42
   horizon: 6
   mandatory_history_months: 36
@@ -15,6 +16,9 @@ general:
       phase_01: "experiments/phase_01_discovery/artifacts"
       phase_01A: "experiments/phase_01A_financial_audit/artifacts"
       phase_02: "experiments/phase_02_preprocessing/artifacts"
+    forecasts: "outputs/forecasts"
+    reports_phase_06: "outputs/reports/phase_06_forecasting"
+    figures_phase_06: "outputs/figures/phase_06_forecasting"
 
 business_rules:
   ventas_diarias:
@@ -490,6 +494,59 @@ inference:
       - "trm_promedio"
       - "tasa_desempleo"
       - "costo_insumos_index"
-      - "precio_unitario_full"
-      - "costo_unitario"
+      - "inversion_facebook"
+      - "inversion_instagram"
+    
+    # Reglas de negocio específicas para proyección financiera (Regla Paso 5)
+    business_rules:
+      annual_inflation_estimate: 0.045 # 4.5% esperado
+      precio:
+        july_increase: 0.05
+        annual_inflation_adjustment: true
+      costo:
+        annual_inflation_adjustment: true
+        constant_per_year: true
+  
+  # Parámetros del Pronóstico
+  forecast_settings:
+    horizon: 6
+    confidence_level: 0.95
+    include_intervals: true
+    
+  # Nombres de Archivos (Punteros y Patrones)
+  output_naming:
+    csv_latest: "forecast_latest.csv"
+    csv_history_pattern: "forecast_%Y%m%d_%H%M%S.csv"
+    json_report_latest: "phase_06_forecasting_latest.json"
+    json_report_history_pattern: "phase_06_forecasting_%Y%m%d_%H%M%S.json"
+    plot_official: "official_forecast_plot.png"
+    plot_assumptions: "exogenous_assumptions.png"
+
+# ==============================================================================
+# 10. CONFIGURACIÓN DE MONITOREO Y DATA DRIFT (Health Check)
+# ==============================================================================
+monitoring:
+  enabled: true
+  lookback_months: 3 # Periodo reciente para comparar vs histórico
+  
+  # Umbrales de Desviación (Drift)
+  thresholds:
+    # Aviso sutil en el reporte
+    warning: 0.15 
+    # Alerta crítica y marcado de "No Confiable"
+    critical: 0.30 
+    
+  # Métricas a monitorear por Loader/Preprocessor
+  metrics:
+    - "mean"
+    - "std"
+    - "null_ratio"
+    - "outlier_ratio"
+  
+  # Variables críticas para monitoreo de Drift
+  critical_variables:
+    - "total_unidades_entregadas"
+    - "ipc_mensual"
+    - "precio_unitario_full"
+    - "es_promo"
 

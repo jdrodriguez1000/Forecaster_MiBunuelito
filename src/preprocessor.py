@@ -26,6 +26,12 @@ class Preprocessor:
             },
             "artifacts": {}
         }
+        
+        # --- NEW: DYNAMIC REPORT PATHS FOR PHASE 06 ---
+        paths = self.config["general"]["paths"]
+        self.project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        # Default report path, can be overridden by orchestrator
+        self.reports_base_path = os.path.join(self.project_root, paths["reports"])
 
     def process(self, data_dict):
         """
@@ -71,6 +77,9 @@ class Preprocessor:
 
             # Step 11: Artifact and Report Generation
             master_df = self._step_11_generate_artifacts(master_df)
+
+            # Step 12: Monthly Data Drift Monitoring (Rule 6.3)
+            self._step_12_monitor_drift(master_df)
 
             return master_df
 
@@ -317,11 +326,70 @@ class Preprocessor:
                 "random_3": master_df.sample(min(3, len(master_df))).reset_index().to_dict(orient="records")
             }
         }
-        
         # Save Report
-        report_dir = os.path.join(self.config['general']['paths']['reports'], "phase_02_preprocessing")
-        save_report(self.report, report_dir, "phase_01_preprocessing" if "01A" in str(self.config.get("general",{}).get("paths",{}).get("reports","")) else "phase_02_preprocessing")
+        # Logic: If we are in forecasting mode, save to phase_06, else phase_02
+        if "forecasts" in self.config["general"]["paths"] and self.config["general"]["paths"].get("reports_phase_06"):
+            report_dir = os.path.join(self.project_root, self.config["general"]["paths"]["reports_phase_06"])
+            phase_name = "phase_06_forecasting"
+        else:
+            report_dir = os.path.join(self.project_root, self.config['general']['paths']['reports'], "phase_02_preprocessing")
+            phase_name = "phase_02_preprocessing"
+
+        save_report(self.report, report_dir, phase_name)
         
         self.report["artifacts"]["master_dataset"] = output_path
         self.report["steps_detail"]["11_artifact_generation"] = "Exported Parquet with Time Index and generated traceability report."
         return master_df
+
+    def _step_12_monitor_drift(self, master_df):
+        """
+        Implements Statistical Drift Monitoring on Monthly Aggregated Data.
+        Compares recent window (from config) against historical baseline.
+        """
+        logger.info("Step 12: Monitoring Monthly Data Drift...")
+        mon_cfg = self.config.get("monitoring", {})
+        if not mon_cfg.get("enabled", False):
+            self.report["monitoring_status"] = "Disabled"
+            return
+            
+        target = self.config["preprocessing"]["target_variable"]
+        lookback = mon_cfg.get("lookback_months", 3)
+        crit_vars = mon_cfg.get("critical_variables", [])
+        
+        # 1. Historical Baseline (All but last few months)
+        baseline_df = master_df.iloc[:-lookback]
+        # 2. Recent Window (The potential drift zone)
+        recent_df = master_df.iloc[-lookback:]
+        
+        drift_report = {"status": "STABLE", "alerts": []}
+        
+        for var in crit_vars:
+            if var not in master_df.columns: continue
+            
+            b_mean = baseline_df[var].mean()
+            r_mean = recent_df[var].mean()
+            
+            # Simple Percentage Change
+            change = (r_mean / b_mean - 1) * 100 if b_mean != 0 else 0
+            
+            # Check thresholds (Warning/Critical)
+            thresholds = mon_cfg.get("thresholds", {"warning": 0.15, "critical": 0.30})
+            alert_type = None
+            if abs(change) >= thresholds["critical"] * 100:
+                alert_type = "CRITICAL"
+                drift_report["status"] = "ALERT"
+            elif abs(change) >= thresholds["warning"] * 100:
+                alert_type = "WARNING"
+                if drift_report["status"] != "ALERT": drift_report["status"] = "WARNING"
+            
+            if alert_type:
+                drift_report["alerts"].append({
+                    "variable": var,
+                    "level": alert_type,
+                    "change_pct": round(change, 2),
+                    "baseline_mean": round(b_mean, 2),
+                    "recent_mean": round(r_mean, 2)
+                })
+        
+        self.report["data_drift"] = drift_report
+        logger.info(f"Drift Monitoring completed. Status: {drift_report['status']}")

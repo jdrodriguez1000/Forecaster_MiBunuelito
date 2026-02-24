@@ -1351,7 +1351,7 @@ class ForecasterTrainer:
             differentiation=diff if diff > 0 else None,
             weight_func=weight_func
         )
-        final_forecaster.fit(y=y_full, exog=exog_full)
+        final_forecaster.fit(y=y_full, exog=exog_full, store_in_sample_residuals=True)
 
         # 11. Save Final Model
         logger.info(f"Saving final model to {self.models_dir}...")

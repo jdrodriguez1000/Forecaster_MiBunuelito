@@ -1,0 +1,57 @@
+{
+    "phase": "testing",
+    "test_type": "unit_tests",
+    "timestamp": "2026-02-24T15:58:36.852355",
+    "description": "Automated test execution report for unit_tests",
+    "summary": {
+        "total_collected": 7,
+        "passed": 4,
+        "failed": 3,
+        "skipped": 0,
+        "exit_status": 1
+    },
+    "results": [
+        {
+            "node_id": "tests/unit/test_loader.py::test_dataloader_init",
+            "outcome": "failed",
+            "duration_secs": 0.0017,
+            "error": "mock_config = {'extractions': {'sentinels': {'boolean': [], 'categorical': ['NA'], 'datetime': [], 'numeric': [-999]}, 'tables': {'v...arias'}}}, 'general': {'paths': {'experiments': {'phase_01': 'experiments/phase_01/artifacts'}, 'raw': 'data/01_raw'}}}\n\n    def test_dataloader_init(mock_config):\n        \"\"\"Prueba que el DataLoader se inicializa y resuelve rutas correctamente.\"\"\"\n        with patch(\"src.loader.load_config\", return_value=mock_config):\n            with patch(\"src.utils.encoding_patch.apply_utf8_patch\"):\n>               loader = src.loader.DataLoader()\n                         ^^^^^^^^^^^^^^^^^^^^^^^\n\ntests\\unit\\test_loader.py:33: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = <src.loader.DataLoader object at 0x000002249829EAB0>, config = None\nconfig_path = 'config.yaml'\n\n    def __init__(self, config=None, config_path: str = \"config.yaml\"):\n        \"\"\"\n        Initializes loader using strict definitions from config.yaml.\n        \"\"\"\n        # Search for config in project root relative to src/\n        current_dir = os.path.dirname(os.path.abspath(__file__))\n        self.project_root = os.path.abspath(os.path.join(current_dir, \"..\"))\n    \n        if config is not None:\n            self.config = config\n        else:\n            # Load config utilizing official utility (No custom logic here)\n            config_abs_path = os.path.join(self.project_root, config_path)\n            self.config = load_config(config_abs_path)\n    \n        self.db_connector = DBConnector()\n    \n        # DYNAMIC PATH RESOLUTION FROM CONFIG.YAML\n        paths = self.config[\"general\"][\"paths\"]\n        raw_rel_path = paths[\"raw\"]\n        self.raw_path = os.path.join(self.project_root, raw_rel_path)\n        os.makedirs(self.raw_path, exist_ok=True)\n    \n        # Determine report path based on phase (Discovery vs Forecasting)\n>       self.reports_base_path = os.path.join(self.project_root, paths[\"reports\"])\n                                                                 ^^^^^^^^^^^^^^^^\nE       KeyError: 'reports'\n\nsrc\\loader.py:45: KeyError"
+        },
+        {
+            "node_id": "tests/unit/test_loader.py::test_fetch_all_with_pagination",
+            "outcome": "failed",
+            "duration_secs": 0.0016,
+            "error": "mock_config = {'extractions': {'sentinels': {'boolean': [], 'categorical': ['NA'], 'datetime': [], 'numeric': [-999]}, 'tables': {'v...arias'}}}, 'general': {'paths': {'experiments': {'phase_01': 'experiments/phase_01/artifacts'}, 'raw': 'data/01_raw'}}}\n\n    def test_fetch_all_with_pagination(mock_config):\n        \"\"\"Prueba la paginación recursiva de Supabase.\"\"\"\n        with patch(\"src.loader.load_config\", return_value=mock_config):\n            with patch(\"src.loader.DBConnector\") as mock_db:\n                mock_client = MagicMock()\n                mock_db.return_value.get_client.return_value = mock_client\n    \n                # Setup mock for pagination\n                mock_execute = MagicMock()\n                mock_execute.side_effect = [\n                    MagicMock(data=[{\"id\": i} for i in range(1000)]),\n                    MagicMock(data=[{\"id\": i} for i in range(1000, 1500)])\n                ]\n                mock_client.table.return_value.select.return_value.range.return_value.execute = mock_execute\n    \n>               loader = src.loader.DataLoader()\n                         ^^^^^^^^^^^^^^^^^^^^^^^\n\ntests\\unit\\test_loader.py:52: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = <src.loader.DataLoader object at 0x0000022498146D80>, config = None\nconfig_path = 'config.yaml'\n\n    def __init__(self, config=None, config_path: str = \"config.yaml\"):\n        \"\"\"\n        Initializes loader using strict definitions from config.yaml.\n        \"\"\"\n        # Search for config in project root relative to src/\n        current_dir = os.path.dirname(os.path.abspath(__file__))\n        self.project_root = os.path.abspath(os.path.join(current_dir, \"..\"))\n    \n        if config is not None:\n            self.config = config\n        else:\n            # Load config utilizing official utility (No custom logic here)\n            config_abs_path = os.path.join(self.project_root, config_path)\n            self.config = load_config(config_abs_path)\n    \n        self.db_connector = DBConnector()\n    \n        # DYNAMIC PATH RESOLUTION FROM CONFIG.YAML\n        paths = self.config[\"general\"][\"paths\"]\n        raw_rel_path = paths[\"raw\"]\n        self.raw_path = os.path.join(self.project_root, raw_rel_path)\n        os.makedirs(self.raw_path, exist_ok=True)\n    \n        # Determine report path based on phase (Discovery vs Forecasting)\n>       self.reports_base_path = os.path.join(self.project_root, paths[\"reports\"])\n                                                                 ^^^^^^^^^^^^^^^^\nE       KeyError: 'reports'\n\nsrc\\loader.py:45: KeyError"
+        },
+        {
+            "node_id": "tests/unit/test_loader.py::test_load_and_audit_incremental",
+            "outcome": "failed",
+            "duration_secs": 0.0007,
+            "error": "mock_config = {'extractions': {'sentinels': {'boolean': [], 'categorical': ['NA'], 'datetime': [], 'numeric': [-999]}, 'tables': {'v...arias'}}}, 'general': {'paths': {'experiments': {'phase_01': 'experiments/phase_01/artifacts'}, 'raw': 'data/01_raw'}}}\n\n    def test_load_and_audit_incremental(mock_config):\n        \"\"\"Prueba que la carga incremental funciona y maneja duplicados.\"\"\"\n        with patch(\"src.loader.load_config\", return_value=mock_config):\n            # Evitar inicializar BD real\n            with patch(\"src.loader.DBConnector\"):\n>               loader = src.loader.DataLoader()\n                         ^^^^^^^^^^^^^^^^^^^^^^^\n\ntests\\unit\\test_loader.py:63: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = <src.loader.DataLoader object at 0x00000224983DC8C0>, config = None\nconfig_path = 'config.yaml'\n\n    def __init__(self, config=None, config_path: str = \"config.yaml\"):\n        \"\"\"\n        Initializes loader using strict definitions from config.yaml.\n        \"\"\"\n        # Search for config in project root relative to src/\n        current_dir = os.path.dirname(os.path.abspath(__file__))\n        self.project_root = os.path.abspath(os.path.join(current_dir, \"..\"))\n    \n        if config is not None:\n            self.config = config\n        else:\n            # Load config utilizing official utility (No custom logic here)\n            config_abs_path = os.path.join(self.project_root, config_path)\n            self.config = load_config(config_abs_path)\n    \n        self.db_connector = DBConnector()\n    \n        # DYNAMIC PATH RESOLUTION FROM CONFIG.YAML\n        paths = self.config[\"general\"][\"paths\"]\n        raw_rel_path = paths[\"raw\"]\n        self.raw_path = os.path.join(self.project_root, raw_rel_path)\n        os.makedirs(self.raw_path, exist_ok=True)\n    \n        # Determine report path based on phase (Discovery vs Forecasting)\n>       self.reports_base_path = os.path.join(self.project_root, paths[\"reports\"])\n                                                                 ^^^^^^^^^^^^^^^^\nE       KeyError: 'reports'\n\nsrc\\loader.py:45: KeyError"
+        },
+        {
+            "node_id": "tests/unit/test_validator.py::test_validator_success",
+            "outcome": "passed",
+            "duration_secs": 0.0232,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_validator.py::test_validator_income_logic_fail",
+            "outcome": "passed",
+            "duration_secs": 0.0212,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_validator.py::test_validator_redes_sum_fail",
+            "outcome": "passed",
+            "duration_secs": 0.0217,
+            "error": null
+        },
+        {
+            "node_id": "tests/unit/test_validator.py::test_validator_missing_table",
+            "outcome": "passed",
+            "duration_secs": 0.0174,
+            "error": null
+        }
+    ]
+}

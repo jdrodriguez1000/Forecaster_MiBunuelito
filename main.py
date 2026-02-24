@@ -13,34 +13,38 @@ from src.preprocessor import Preprocessor
 from src.explorer import DataExplorer
 from src.features import FeatureEngineer
 from src.trainer import ForecasterTrainer
+from src.inference import InferenceEngine
 
 def main(args_list=None):
     parser = argparse.ArgumentParser(description="Mi Buñuelito Forecasting Orchestrator")
     parser.add_argument("--phase", type=str, required=False, default=None,
                         choices=["discovery", "financial_audit", "preprocessing", "eda", "features", "modeling", "inference"],
                         help="Execution phase to run (if omitted, runs all phases for the selected mode)")
-    parser.add_argument("--mode", "-m", type=str, required=False, default="train",
+    parser.add_argument("--mode", "-m", type=str, required=False, default=None,
                         choices=["train", "forecast"],
-                        help="Execution mode: 'train' (full development) or 'forecast' (production inference). Default: 'train'")
+                        help="Execution mode: 'train' or 'forecast'. (Prioritizes config.yaml)")
     
     args = parser.parse_args(args_list)
     config = load_config()
     setup_logging()
     
+    # Resolver modo de ejecución (Prioriza CLI > Config > Default 'train')
+    mode = args.mode or config.get("general", {}).get("execution_mode", "train")
+    
     logger = logging.getLogger("Orchestrator")
-    logger.info(f"🛠️ Modo de ejecuci\u00f3n: {args.mode.upper()}")
+    logger.info(f"🛠️ Modo de ejecución: {mode.upper()}")
     
     # Define phases to run
     if args.phase:
         phases_to_run = [args.phase]
         logger.info(f"🚀 Iniciando fase individual: {args.phase}")
     else:
-        if args.mode == "train":
+        if mode == "train":
             phases_to_run = ["discovery", "financial_audit", "preprocessing", "eda", "features", "modeling"]
         else: # forecast mode
             phases_to_run = ["discovery", "preprocessing", "features", "inference"]
             
-        logger.info(f"🚀 Iniciando Pipeline ({args.mode}): {', '.join(phases_to_run)}")
+        logger.info(f"🚀 Iniciando Pipeline ({mode}): {', '.join(phases_to_run)}")
 
     base_reports_path = config["general"]["paths"]["reports"]
 
@@ -59,7 +63,7 @@ def main(args_list=None):
                 _run_eda(config, base_reports_path, logger)
             
             elif phase == "features":
-                _run_features(config, base_reports_path, logger)
+                _run_features(config, base_reports_path, logger, mode=mode)
 
             elif phase == "modeling":
                 _run_modeling(config, base_reports_path, logger)
@@ -141,8 +145,8 @@ def _run_eda(config, base_reports_path, logger):
     
     logger.info(f"✅ EDA completado. Resultados en el reporte y visualizaciones generadas.")
 
-def _run_features(config, base_reports_path, logger):
-    logger.info("--- Ejecutando Fase: FEATURES ---")
+def _run_features(config, base_reports_path, logger, mode='train'):
+    logger.info(f"--- Ejecutando Fase: FEATURES ({mode}) ---")
     
     # 1. Cargar Master Cleansed
     cleansed_path = os.path.join(config["general"]["paths"]["cleansed"], "master_cleansed.parquet")
@@ -153,9 +157,9 @@ def _run_features(config, base_reports_path, logger):
     
     # 2. Ejecutar FeatureEngineer
     engineer = FeatureEngineer(config)
-    df_features = engineer.engineer(df)
+    df_features = engineer.engineer(df, mode=mode)
     
-    logger.info(f"✅ Feature Engineering completado. Dataset enriquecido con {df_features.shape[1]} variables y {len(df_features)} registros.")
+    logger.info(f"✅ Feature Engineering completado. Dataset enriquecido con {df_features.shape[1]} variables. Modo: {mode}")
 
 def _run_modeling(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: MODELING ---")
@@ -179,7 +183,16 @@ def _run_modeling(config, base_reports_path, logger):
 
 def _run_inference(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: INFERENCE (FORECAST MODE) ---")
-    logger.warning("🚧 Fase INFERENCE en desarrollo. Implementaci\u00f3n pendiente.")
+    
+    # 1. Instanciar el motor de inferencia
+    engine = InferenceEngine(config)
+    
+    # 2. Ejecutar el pronóstico
+    # Nota: Requiere que 'features' se haya corrido previamente en modo forecast
+    result_df = engine.run_forecast()
+    
+    logger.info("✅ Pronóstico generado con éxito.")
+    logger.info(f"Visualización de los próximos 6 meses:\n{result_df}")
 
 if __name__ == "__main__":
     main()

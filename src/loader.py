@@ -36,10 +36,13 @@ class DataLoader:
         self.db_connector = DBConnector()
         
         # DYNAMIC PATH RESOLUTION FROM CONFIG.YAML
-        # We respect the "raw" path defined in general:paths
-        raw_rel_path = self.config["general"]["paths"]["raw"]
+        paths = self.config["general"]["paths"]
+        raw_rel_path = paths["raw"]
         self.raw_path = os.path.join(self.project_root, raw_rel_path)
         os.makedirs(self.raw_path, exist_ok=True)
+        
+        # Determine report path based on phase (Discovery vs Forecasting)
+        self.reports_base_path = os.path.join(self.project_root, paths["reports"])
 
     def load_and_audit(self, force_full_load: bool = False) -> Dict[str, Any]:
         """
@@ -99,7 +102,44 @@ class DataLoader:
             report = self._audit_table(df_total, table_info)
             full_report["tables"][table_name] = report
 
+        # --- NEW: CROSS-TABLE SYNCHRONIZATION CHECK (Rule 3.3 Readiness) ---
+        full_report["execution_context"] = self._check_table_sync(full_report["tables"])
+        
+        # Save Report logic moved to a helper or managed here
+        phase_folder = "phase_01_discovery"
+        # If we are in forecasting mode (detected via config or external flag)
+        if "forecasts" in self.config["general"]["paths"]:
+             # This logic will be triggered when running forecasting phase
+             pass 
+
         return full_report
+
+    def _check_table_sync(self, table_reports: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validates if all mandatory tables are synchronized in their max dates.
+        Crucial for forecasting stability.
+        """
+        sync_info = {}
+        max_dates = {}
+        
+        for table, report in table_reports.items():
+            if "time_series_health" in report and "date_range" in report["time_series_health"]:
+                max_dates[table] = report["time_series_health"]["date_range"]["max"]
+        
+        if not max_dates:
+            return {"status": "unknown", "message": "No date information available for sync check."}
+            
+        unique_dates = set(max_dates.values())
+        sync_info["max_dates_per_table"] = max_dates
+        sync_info["synchronized"] = len(unique_dates) == 1
+        sync_info["status"] = "OK" if len(unique_dates) == 1 else "WARNING"
+        
+        if len(unique_dates) > 1:
+            sync_info["message"] = f"Tables are out of sync. Found {len(unique_dates)} different max dates: {list(unique_dates)}"
+        else:
+            sync_info["message"] = f"All tables synchronized at {list(unique_dates)[0]}"
+            
+        return sync_info
 
     def _fetch_all_with_pagination(self, supabase, table_name: str, date_col: str = None, after_date: str = None) -> pd.DataFrame:
         """

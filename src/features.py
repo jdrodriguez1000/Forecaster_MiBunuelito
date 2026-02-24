@@ -25,16 +25,17 @@ class FeatureEngineer:
             "artifacts": {}
         }
 
-    def engineer(self, df: pd.DataFrame, save=True):
+    def engineer(self, df: pd.DataFrame, save=True, mode='train'):
         """
         Execute the feature engineering pipeline.
         Args:
             df (pd.DataFrame): Cleansed master dataset with datetime index.
             save (bool): Whether to save artifacts and reports.
+            mode (str): 'train' or 'forecast'. 'forecast' extends the horizon.
         Returns:
             pd.DataFrame: Enriched dataset with extended horizon.
         """
-        logger.info("Starting feature engineering pipeline...")
+        logger.info(f"Starting feature engineering pipeline in mode: {mode}...")
         
         # Capturing initial metadata for the report (Requirement 2)
         self.report["initial_metadata"] = {
@@ -57,9 +58,13 @@ class FeatureEngineer:
             # Step 4: Add trend features
             df_eng = self._step_04_trend_features(df_eng)
 
+            # Step 5: Project exogenous for future (Only in forecast mode)
+            if mode == 'forecast':
+                df_eng = self._step_05_project_exogenous(df_eng)
+
             # Step 6: Final check and artifact generation
             if save:
-                df_eng = self._step_06_generate_artifacts(df_eng)
+                df_eng = self._step_06_generate_artifacts(df_eng, mode=mode)
 
             return df_eng
 
@@ -112,7 +117,11 @@ class FeatureEngineer:
         # Bonus Months (Jun, Dec)
         df['is_bonus_month'] = df.index.month.isin(events_cfg['bonus_months']).astype(int)
         
-        self.report["steps_detail"]["02_event_features"] = "Added is_pandemic, novenas_intensity, and is_bonus_month."
+        # Promotions (Requirement 1.1) - Months Apr-May and Sep-Oct
+        promo_months = self.config['eda']['business_events']['promociones']['months']
+        df['es_promo'] = df.index.month.isin(promo_months).astype(int)
+        
+        self.report["steps_detail"]["02_event_features"] = "Added is_pandemic, novenas_intensity, is_bonus_month and es_promo."
         return df
 
     def _step_03_calendar_technical(self, df):
@@ -149,9 +158,9 @@ class FeatureEngineer:
         return df
 
     def _step_05_project_exogenous(self, df):
-        logger.info("Step 5: Projecting exogenous variables (recursive moving average)...")
+        logger.info("Step 5: Projecting exogenous variables...")
         proj_cfg = self.config['inference']['projection']
-        horizon = self.config['general']['horizon']
+        horizon = self.config['inference']['forecast_settings']['horizon']
         cols_to_project = proj_cfg['columns_to_project']
         
         # Current index end
@@ -164,7 +173,7 @@ class FeatureEngineer:
         # Concatenate for projection
         full_df = pd.concat([df, future_df], sort=False)
         
-        # Project each column
+        # 1. General Projection (Recursive Moving Average)
         for col in cols_to_project:
             if col not in full_df.columns:
                 logger.warning(f"Exogenous column {col} not found in dataset. Skipping projection.")
@@ -172,41 +181,87 @@ class FeatureEngineer:
             
             # Recursive Moving Average logic
             for i in range(len(df), len(full_df)):
-                # Take window_size observations before current index
                 window = full_df[col].iloc[i - proj_cfg['window_size'] : i]
                 full_df.iloc[i, full_df.columns.get_loc(col)] = window.mean()
         
-        # Re-apply non-projected features to the future rows
-        # (These are deterministic features like sin/cos, days in month, etc.)
-        full_df.index.name = 'fecha'
+        # 2. Business Rules Projection (Price and Cost)
+        biz_rules = proj_cfg.get('business_rules', {})
+        inf_estimate = biz_rules.get('annual_inflation_estimate', 0.05)
         
-        # Recalculate deterministic features for the whole range including future
+        for i in range(len(df), len(full_df)):
+            current_date = full_df.index[i]
+            prev_idx = i - 1
+            
+            # Cost Projection Logic
+            if 'costo_unitario' in full_df.columns:
+                prev_cost = full_df.iloc[prev_idx, full_df.columns.get_loc('costo_unitario')]
+                new_cost = prev_cost
+                # Increase in January
+                if current_date.month == 1 and biz_rules.get('costo', {}).get('annual_inflation_adjustment'):
+                    new_cost = prev_cost * (1 + inf_estimate)
+                full_df.iloc[i, full_df.columns.get_loc('costo_unitario')] = new_cost
+
+            # Price Projection Logic
+            if 'precio_unitario_full' in full_df.columns:
+                prev_price = full_df.iloc[prev_idx, full_df.columns.get_loc('precio_unitario_full')]
+                new_price = prev_price
+                # Increase in January (Inflation)
+                if current_date.month == 1 and biz_rules.get('precio', {}).get('annual_inflation_adjustment'):
+                    new_price = prev_price * (1 + inf_estimate)
+                # Increase in July (Slight increase)
+                if current_date.month == 7:
+                    july_inc = biz_rules.get('precio', {}).get('july_increase', 0.05)
+                    new_price = new_price * (1 + july_inc)
+                full_df.iloc[i, full_df.columns.get_loc('precio_unitario_full')] = new_price
+
+        # 3. Recap deterministic features for the whole range
+        full_df.index.name = 'fecha'
         full_df = self._step_01_cyclical_features(full_df)
         full_df = self._step_02_event_features(full_df)
         full_df = self._step_03_calendar_technical(full_df)
         full_df = self._step_04_trend_features(full_df)
         
-        # Special case: es_promo and investments
-        # We assume 0 for future if not provided (Simplification for now)
-        other_exog = ['es_promo', 'inversion_facebook', 'inversion_instagram', 'precio_unitario_full', 'costo_unitario']
+        # 4. Fill remaining exog (es_promo, investments)
+        # es_promo logic could be more complex but for now 0 is safe for unplanned future
+        other_exog = ['es_promo', 'inversion_facebook', 'inversion_instagram']
         for col in other_exog:
             if col in full_df.columns:
-                # Fill future NaNs with 0 or last value
-                if col in ['precio_unitario_full', 'costo_unitario']:
-                    full_df[col] = full_df[col].ffill()
-                else:
-                    full_df[col] = full_df[col].fillna(0)
+                full_df[col] = full_df[col].fillna(0)
 
-        self.report["steps_detail"]["05_projection"] = f"Projected {cols_to_project} for {horizon} months."
+        self.report["steps_detail"]["05_projection"] = f"Projected {cols_to_project} and financial rules for {horizon} months."
         return full_df
 
-    def _step_06_generate_artifacts(self, df):
+    def _step_06_generate_artifacts(self, df, mode='train'):
         logger.info("Step 6: Generating artifacts...")
         # Adhering to Rule 6: Segregation of outputs
-        output_dir = self.config['general']['paths']['features']
-        os.makedirs(output_dir, exist_ok=True)
         
-        output_path = os.path.join(output_dir, "master_features.parquet")
+        if mode == 'forecast':
+            # Use phase 06 forecasting paths
+            output_dir = os.path.join(self.config['general']['paths'].get('forecasts', "outputs/forecasts"), "artifacts")
+            report_dir = self.config['general']['paths'].get('reports_phase_06', "outputs/reports/phase_06_forecasting")
+            report_name = "phase_06_forecasting"
+            
+            # File names for dual persistence (Rule 7)
+            latest_filename = "projected_features_latest.parquet"
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            hist_filename = f"projected_features_{timestamp}.parquet"
+            
+            output_path = os.path.join(output_dir, latest_filename)
+            
+            # Save history
+            hist_dir = os.path.join(output_dir, "history")
+            os.makedirs(hist_dir, exist_ok=True)
+            df.to_parquet(os.path.join(hist_dir, hist_filename))
+        else:
+            # Use standard phase 04 paths
+            output_dir = self.config['general']['paths']['features']
+            report_dir = os.path.join(self.config['general']['paths']['reports'], "phase_04_feature_engineering")
+            report_name = "phase_04_feature_engineering"
+            output_path = os.path.join(output_dir, "master_features.parquet")
+
+        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(report_dir, exist_ok=True)
+        
         df.to_parquet(output_path)
         
         # Capturing final metadata for the report (Requirement 3)
@@ -223,7 +278,7 @@ class FeatureEngineer:
         self.report["data_preview"] = {
             "first_3": df_preview.head(3).to_dict(orient='records'),
             "last_3": df_preview.tail(3).to_dict(orient='records'),
-            "random_3": df_preview.sample(3, random_state=self.config.get('general', {}).get('random_state', 42)).to_dict(orient='records')
+            "random_3": df_preview.sample(min(3, len(df_preview)), random_state=self.config.get('general', {}).get('random_state', 42)).to_dict(orient='records')
         }
 
         self.report["transformed_shape"] = df.shape
@@ -231,7 +286,6 @@ class FeatureEngineer:
         self.report["artifacts"]["master_features"] = output_path
         
         # Save official report
-        report_dir = os.path.join(self.config['general']['paths']['reports'], "phase_04_feature_engineering")
-        save_report(self.report, report_dir, "phase_04_feature_engineering")
+        save_report(self.report, report_dir, report_name)
         
         return df

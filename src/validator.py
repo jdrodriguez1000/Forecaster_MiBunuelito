@@ -27,7 +27,8 @@ class BusinessValidator:
                 self.config = yaml.safe_load(f)
             
         self.rules = self.config.get("business_rules", {})
-        self.reports_path = self.config["general"]["paths"]["experiments"].get("phase_01A")
+        # Base reports path from config
+        self.reports_base_path = os.path.join(self.project_root, self.config["general"]["paths"]["reports"])
 
     def validate_all(self, data_dict: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
         """
