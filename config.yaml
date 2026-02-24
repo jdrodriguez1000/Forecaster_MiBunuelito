@@ -299,6 +299,12 @@ training_parameters:
   forecast_horizon: 6
   gap: 0
   
+  # --- Configuración de Atributos de Ventana (Requirement EDA) ---
+  window_features:
+    enabled: true
+    stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
+    window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
+  
   # --- Parámetros de Evaluación y Selección ---
   metric_for_tuning: 'mean_absolute_error'
   n_top_candidates_to_validate: 5 
@@ -388,6 +394,10 @@ experiments:
   # PASO 3: Selección de Preprocesamiento (Top 5)
   - name: 'run_01_preprocessing_tournament'
     enabled: true
+    window_features:
+      enabled: true
+      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
+      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
     description: 'Torneo Fase 1: Evaluación de modelos con y sin transformación Yeo-Johnson sobre serie endógena. Selección del Top 5.'
     models_to_train:
       - 'Ridge'
@@ -411,6 +421,10 @@ experiments:
   # PASO 4: Calendario + Diferenciación (Top 2)
   - name: 'run_02_calendar_and_diff'
     enabled: true
+    window_features:
+      enabled: true
+      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
+      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
     description: 'Torneo Fase 2: Aplicación de variables calendario y prueba de diferenciación sobre el Top 5. Selección del Top 2.'
     exogenous_features:
       features_to_use: 
@@ -431,12 +445,20 @@ experiments:
   # PASO 5: Incremento Progresivo de Variables (Para los 2 Finalistas)
   - name: 'run_03_social_media'
     enabled: true
+    window_features:
+      enabled: true
+      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
+      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
     description: 'Torneo Fase 3: Adición de inversión en Redes Sociales (Facebook/Instagram).'
     exogenous_features:
       features_to_use: ['inversion_facebook', 'inversion_instagram']
 
   - name: 'run_04_macroeconomics'
     enabled: true
+    window_features:
+      enabled: true
+      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
+      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
     description: 'Torneo Fase 4: Adición de contexto macroeconómico (IPC, TRM, Desempleo, etc.).'
     exogenous_features:
       features_to_use: 
@@ -448,6 +470,10 @@ experiments:
 
   - name: 'run_05_structural_hacks'
     enabled: true
+    window_features:
+      enabled: true
+      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
+      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
     description: 'Torneo Fase 5: Adición de variables de negocio y eventos estructurales.'
     exogenous_features:
       features_to_use: 
@@ -462,6 +488,10 @@ experiments:
   # PASO 6: El Campeón (Pesos por Eras)
   - name: 'run_final_champion'
     enabled: true
+    window_features:
+      enabled: true
+      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
+      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
     description: 'Fase Final: Aplicación de Pesos por Eras al mejor modelo del torneo integral, heredando su set de variables.'
     training_options:
       use_weights: true

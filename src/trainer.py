@@ -17,6 +17,7 @@ from sklearn.preprocessing import PowerTransformer
 from skforecast.recursive import ForecasterEquivalentDate
 from skforecast.direct import ForecasterDirect
 from skforecast.model_selection import grid_search_forecaster, backtesting_forecaster, TimeSeriesFold
+from skforecast.preprocessing import RollingFeatures
 
 from src.utils.config_loader import load_config
 from src.utils.helpers import setup_logging, save_report, save_figure, save_model
@@ -81,6 +82,18 @@ class ForecasterTrainer:
         
         # Store for the current best model (to beat/compare)
         self.naive_baseline = None
+
+    def _get_rolling_features(self, experiment_config):
+        """
+        Extract window_features configuration and return a RollingFeatures object.
+        """
+        wf_config = experiment_config.get('window_features', {})
+        if wf_config.get('enabled', False):
+            return RollingFeatures(
+                stats=wf_config.get('stats', []),
+                window_sizes=wf_config.get('window_sizes', [])
+            )
+        return None
 
     def load_and_split_data(self):
         """
@@ -228,7 +241,8 @@ class ForecasterTrainer:
                     estimator=regressor,
                     lags=1, # Dummy, will be overwritten by grid search
                     steps=len(self.data_val),
-                    transformer_y=transformer_y
+                    transformer_y=transformer_y,
+                    window_features=self._get_rolling_features(run_config)
                 )
                 
                 # Define CV (Rolling Window / Backtesting logic)
@@ -412,7 +426,8 @@ class ForecasterTrainer:
                     lags=1, 
                     steps=len(self.data_val),
                     transformer_y=transformer_y,
-                    differentiation=d if d > 0 else None
+                    differentiation=d if d > 0 else None,
+                    window_features=self._get_rolling_features(run_config)
                 )
                 
                 cv = TimeSeriesFold(
@@ -582,7 +597,8 @@ class ForecasterTrainer:
                         lags=candidate['lags'],
                         steps=len(self.data_val),
                         transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
-                        differentiation=d if d > 0 else None
+                        differentiation=d if d > 0 else None,
+                        window_features=self._get_rolling_features(run_config)
                     )
                     
                     # Backtesting
@@ -719,7 +735,8 @@ class ForecasterTrainer:
                         lags=candidate['lags'],
                         steps=len(self.data_val),
                         transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
-                        differentiation=d if d > 0 else None
+                        differentiation=d if d > 0 else None,
+                        window_features=self._get_rolling_features(run_config)
                     )
                     
                     # Backtesting
@@ -853,7 +870,8 @@ class ForecasterTrainer:
                         lags=candidate['lags'],
                         steps=len(self.data_val),
                         transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
-                        differentiation=d if d > 0 else None
+                        differentiation=d if d > 0 else None,
+                        window_features=self._get_rolling_features(run_config)
                     )
                     
                     # Backtesting
@@ -999,7 +1017,8 @@ class ForecasterTrainer:
                     steps=len(self.data_val),
                     transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
                     differentiation=d if d > 0 else None,
-                    weight_func=era_weight_func
+                    weight_func=era_weight_func,
+                    window_features=self._get_rolling_features(run_config)
                 )
                 
                 metric_val, _ = backtesting_forecaster(
@@ -1087,7 +1106,8 @@ class ForecasterTrainer:
             forecaster = ForecasterDirect(
                 estimator=regressor, lags=candidate['lags'], steps=len(self.data_val),
                 transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
-                differentiation=d if d > 0 else None
+                differentiation=d if d > 0 else None,
+                window_features=self._get_rolling_features(run_config)
             )
             
             try:
@@ -1269,13 +1289,15 @@ class ForecasterTrainer:
             weight_func = global_era_weight_func
 
         # 3. Instantiate Forecaster
+        run_config_final = next((r for r in self.config['experiments'] if r['name'] == "run_final_champion"), {})
         forecaster = ForecasterDirect(
             estimator=regressor,
             lags=lags,
             steps=len(self.data_test),
             transformer_y=PowerTransformer(method='yeo-johnson') if trans == 'Yeo-Johnson' else None,
             differentiation=diff if diff > 0 else None,
-            weight_func=weight_func
+            weight_func=weight_func,
+            window_features=self._get_rolling_features(run_config_final)
         )
 
         # 4. Train on combined Train + Validation (to predict Test)
@@ -1349,7 +1371,8 @@ class ForecasterTrainer:
             steps=self.config['general'].get('horizon', 6), # Production horizon
             transformer_y=PowerTransformer(method='yeo-johnson') if trans == 'Yeo-Johnson' else None,
             differentiation=diff if diff > 0 else None,
-            weight_func=weight_func
+            weight_func=weight_func,
+            window_features=self._get_rolling_features(run_config_final)
         )
         final_forecaster.fit(y=y_full, exog=exog_full, store_in_sample_residuals=True)
 
