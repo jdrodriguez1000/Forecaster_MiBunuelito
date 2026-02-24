@@ -20,3 +20,7 @@ Thumbs.db
 # Removed .agent/ and .gemini/ to allow rule visibility in the IDE
 # .agent/
 # .gemini/
+
+# Logs and temp files
+*.log
+*.txt

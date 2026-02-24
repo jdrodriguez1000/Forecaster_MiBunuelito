@@ -14,14 +14,17 @@ class BusinessValidator:
     Funciona de forma independiente al DataLoader.
     """
     
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config=None, config_path: str = "config.yaml"):
         # Determinar raíz del proyecto
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.project_root = os.path.abspath(os.path.join(current_dir, ".."))
         
-        abs_config_path = os.path.join(self.project_root, config_path)
-        with open(abs_config_path, "r", encoding="utf-8") as f:
-            self.config = yaml.safe_load(f)
+        if config is not None:
+            self.config = config
+        else:
+            abs_config_path = os.path.join(self.project_root, config_path)
+            with open(abs_config_path, "r", encoding="utf-8") as f:
+                self.config = yaml.safe_load(f)
             
         self.rules = self.config.get("business_rules", {})
         self.reports_path = self.config["general"]["paths"]["experiments"].get("phase_01A")

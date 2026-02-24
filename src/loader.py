@@ -18,7 +18,7 @@ class DataLoader:
     based on a data contract defined in config.yaml.
     """
 
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config=None, config_path: str = "config.yaml"):
         """
         Initializes loader using strict definitions from config.yaml.
         """
@@ -26,9 +26,12 @@ class DataLoader:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.project_root = os.path.abspath(os.path.join(current_dir, ".."))
         
-        # Load config utilizing official utility (No custom logic here)
-        config_abs_path = os.path.join(self.project_root, config_path)
-        self.config = load_config(config_abs_path)
+        if config is not None:
+            self.config = config
+        else:
+            # Load config utilizing official utility (No custom logic here)
+            config_abs_path = os.path.join(self.project_root, config_path)
+            self.config = load_config(config_abs_path)
         
         self.db_connector = DBConnector()
         

@@ -36,9 +36,9 @@ def main(args_list=None):
         logger.info(f"🚀 Iniciando fase individual: {args.phase}")
     else:
         if args.mode == "train":
-            phases_to_run = ["discovery", "financial_audit", "preprocessing", "eda", "features", "modeling"] # Se a\u00f1adir\u00e1n 'features' y 'modeling'
+            phases_to_run = ["discovery", "financial_audit", "preprocessing", "eda", "features", "modeling"]
         else: # forecast mode
-            phases_to_run = ["discovery", "preprocessing", "features", "inference"] # Se a\u00f1adir\u00e1 'features' antes de 'inference'
+            phases_to_run = ["discovery", "preprocessing", "features", "inference"]
             
         logger.info(f"🚀 Iniciando Pipeline ({args.mode}): {', '.join(phases_to_run)}")
 
@@ -76,7 +76,7 @@ def main(args_list=None):
 
 def _run_discovery(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: DISCOVERY ---")
-    loader = DataLoader()
+    loader = DataLoader(config=config)
     report = loader.load_and_audit()
     
     output_dir = os.path.join(base_reports_path, "phase_01_discovery")
@@ -85,7 +85,7 @@ def _run_discovery(config, base_reports_path, logger):
 
 def _run_financial_audit(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: FINANCIAL_AUDIT ---")
-    loader = DataLoader() 
+    loader = DataLoader(config=config) 
     data = {}
     tables = ["ventas_diarias", "redes_sociales"]
     for table in tables:
@@ -93,7 +93,7 @@ def _run_financial_audit(config, base_reports_path, logger):
         if os.path.exists(file_path):
             data[table] = pd.read_parquet(file_path)
     
-    validator = BusinessValidator()
+    validator = BusinessValidator(config=config)
     report = validator.validate_all(data)
     
     output_dir = os.path.join(base_reports_path, "phase_01A_financial_audit")
@@ -161,7 +161,7 @@ def _run_modeling(config, base_reports_path, logger):
     logger.info("--- Ejecutando Fase: MODELING ---")
     
     # 1. Instanciar Trainer
-    trainer = ForecasterTrainer()
+    trainer = ForecasterTrainer(config=config)
     
     # 2. Pipeline de Modelado
     trainer.load_and_split_data()

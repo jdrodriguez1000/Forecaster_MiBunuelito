@@ -51,12 +51,16 @@ def global_era_weight_func(index):
     return weights
 
 class ForecasterTrainer:
-    def __init__(self, config_path="config.yaml"):
+    def __init__(self, config=None, config_path="config.yaml"):
         """
         Initialize the trainer with configuration.
         """
-        logger.info(f"Loading configuration from {config_path}")
-        self.config = load_config(config_path)
+        if config is not None:
+            self.config = config
+        else:
+            logger.info(f"Loading configuration from {config_path}")
+            self.config = load_config(config_path)
+        
         self.random_state = self.config['general'].get('random_state', 42)
         self.target = self.config['preprocessing']['target_variable']
         
@@ -221,7 +225,7 @@ class ForecasterTrainer:
                 logger.info(f"Testing Model: {model_name} | Transformation: {trans_label}")
                 
                 forecaster = ForecasterDirect(
-                    regressor=regressor,
+                    estimator=regressor,
                     lags=1, # Dummy, will be overwritten by grid search
                     steps=len(self.data_val),
                     transformer_y=transformer_y
@@ -298,7 +302,7 @@ class ForecasterTrainer:
         top_candidates = all_results[:top_n]
         
         # Save run results in report
-        self.report["run_01_preprocessing"] = {
+        self.report[run_config['name']] = {
             "name": run_config['name'],
             "exogenous_features": [],
             "all_results": all_results,
@@ -346,9 +350,9 @@ class ForecasterTrainer:
             return
 
         # 2. Get Top 5 candidates from previous phase
-        top_candidates_run01 = self.report.get("run_01_preprocessing", {}).get("top_candidates", [])
+        top_candidates_run01 = self.report.get("run_01_preprocessing_tournament", {}).get("top_candidates", [])
         if not top_candidates_run01:
-            logger.error("No top candidates found from Run 01. Cannot proceed to Run 02.")
+            logger.error("No top candidates found from Run 01 (run_01_preprocessing_tournament). Cannot proceed to Run 02.")
             return
 
         # 3. Parameters from config
@@ -404,7 +408,7 @@ class ForecasterTrainer:
                 regressor = regressor_class(**instance_params)
                 
                 forecaster = ForecasterDirect(
-                    regressor=regressor,
+                    estimator=regressor,
                     lags=1, 
                     steps=len(self.data_val),
                     transformer_y=transformer_y,
@@ -574,7 +578,7 @@ class ForecasterTrainer:
                     regressor = regressor_class(**params)
                     
                     forecaster = ForecasterDirect(
-                        regressor=regressor,
+                        estimator=regressor,
                         lags=candidate['lags'],
                         steps=len(self.data_val),
                         transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
@@ -711,7 +715,7 @@ class ForecasterTrainer:
                     regressor = regressor_class(**params)
                     
                     forecaster = ForecasterDirect(
-                        regressor=regressor,
+                        estimator=regressor,
                         lags=candidate['lags'],
                         steps=len(self.data_val),
                         transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
@@ -845,7 +849,7 @@ class ForecasterTrainer:
                     regressor = regressor_class(**params)
                     
                     forecaster = ForecasterDirect(
-                        regressor=regressor,
+                        estimator=regressor,
                         lags=candidate['lags'],
                         steps=len(self.data_val),
                         transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
@@ -1081,7 +1085,7 @@ class ForecasterTrainer:
             regressor = regressor_class(**params)
             
             forecaster = ForecasterDirect(
-                regressor=regressor, lags=candidate['lags'], steps=len(self.data_val),
+                estimator=regressor, lags=candidate['lags'], steps=len(self.data_val),
                 transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
                 differentiation=d if d > 0 else None
             )
