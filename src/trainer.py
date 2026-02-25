@@ -86,8 +86,15 @@ class ForecasterTrainer:
     def _get_rolling_features(self, experiment_config):
         """
         Extract window_features configuration and return a RollingFeatures object.
+        Fallback to Run 01 if not present (Methodology: Structural Consistency).
         """
-        wf_config = experiment_config.get('window_features', {})
+        wf_config = experiment_config.get('window_features')
+        
+        # Fallback to Run 01 if missing in current config
+        if wf_config is None:
+            run01_config = next((r for r in self.config.get('experiments', []) if r['name'] == 'run_01_core_weights'), {})
+            wf_config = run01_config.get('window_features', {})
+            
         if wf_config.get('enabled', False):
             return RollingFeatures(
                 stats=wf_config.get('stats', []),
@@ -195,23 +202,31 @@ class ForecasterTrainer:
         # Generar visualizaciones
         self._plot_run00(y_val, predictions_val)
 
-    def run_run01_preprocessing(self):
+    def run_run01_core_weights(self):
         """
-        Step 3.4: Run Run 01 - Preprocessing Tournament.
-        Evaluates models with/without Yeo-Johnson transformation.
-        Returns Top 5 candidates based on Validation MAE.
+        Step 3.4: Run Run 01 - Core weights tournament.
+        Evaluates models with basic lags and era weighting.
         """
-        logger.info("--- EXECUTING RUN 01: Preprocessing Tournament ---")
-        
-        run_config = next((e for e in self.config['experiments'] if e['name'] == 'run_01_preprocessing_tournament'), None)
+        logger.info("--- EXECUTING RUN 01: Core Eras Weighting ---")
+        run_name = 'run_01_core_weights'
+        run_config = next((e for e in self.config['experiments'] if e['name'] == run_name), None)
         if not run_config or not run_config.get('enabled', False):
-            logger.warning("Run 01 is disabled. Skipping.")
+            logger.warning(f"{run_name} is disabled. Skipping.")
             return
 
         models_names = run_config['models_to_train']
         transformations = run_config['preprocessing_options']['transformations']
         lags_grid = run_config['forecasting_parameters']['lags_grid']
         top_n = run_config['advance_criteria']['top_n']
+        
+        # Setup weights if enabled
+        era_weight_func = None
+        training_opts = run_config.get('training_options', {})
+        if training_opts.get('use_weights', False):
+            logger.info("Weights by Era detected. Applying for all candidates in Run 01.")
+            _ERA_WEIGHTS_DATA['events'] = training_opts.get('event_definitions', {})
+            _ERA_WEIGHTS_DATA['distributions'] = training_opts.get('weight_distribution', {})
+            era_weight_func = global_era_weight_func
         
         # Scenario mapping
         all_results = []
@@ -235,13 +250,14 @@ class ForecasterTrainer:
                 transformer_y = PowerTransformer(method='yeo-johnson') if trans == 'yeo-johnson' else None
                 trans_label = "Yeo-Johnson" if trans else "No Trans"
                 
-                logger.info(f"Testing Model: {model_name} | Transformation: {trans_label}")
+                logger.info(f"Testing Model: {model_name} | Transformation: {trans_label} | Differentiation: None | Weights: {'Era-based' if era_weight_func else 'None'}")
                 
                 forecaster = ForecasterDirect(
                     estimator=regressor,
                     lags=1, # Dummy, will be overwritten by grid search
                     steps=len(self.data_val),
                     transformer_y=transformer_y,
+                    weight_func=era_weight_func,
                     window_features=self._get_rolling_features(run_config)
                 )
                 
@@ -300,10 +316,15 @@ class ForecasterTrainer:
                 all_results.append({
                     "model_name": model_name,
                     "transformation": trans_label,
+                    "differentiation": 0,
+                    "weights_applied": True if era_weight_func else False,
                     "lags": [int(l) for l in forecaster.lags],
                     "params": best_row['params'],
                     "mae": float(metric_val.iloc[0]['mean_absolute_error']),
                     "mape": float(metric_val.iloc[0]['mean_absolute_percentage_error']),
+                    "original_model": model_name,
+                    "features_used": [],
+                    "features_count": 0,
                     "feature_importance": feature_importance
                 })
 
@@ -311,19 +332,19 @@ class ForecasterTrainer:
             logger.error("No models were successfully trained in Run 01.")
             return
 
-        # Sort and select Top N
+        # Sort and select Top 1 (Lean Strategy)
         all_results.sort(key=lambda x: x['mae'])
-        top_candidates = all_results[:top_n]
+        candidate_model = all_results[0]
         
         # Save run results in report
         self.report[run_config['name']] = {
             "name": run_config['name'],
             "exogenous_features": [],
             "all_results": all_results,
-            "top_candidates": top_candidates
+            "candidate_model": candidate_model
         }
         
-        logger.info(f"Run 01 Finished. Best Candidate: {top_candidates[0]['model_name']} with MAE: {top_candidates[0]['mae']:.2f}")
+        logger.info(f"Run 01 Finished. Best Candidate: {candidate_model['model_name']} with MAE: {candidate_model['mae']:.2f}")
         logger.info("--- SAVING RUN 01 RESULTS AND PROCEEDING ---")
 
     def _plot_run00(self, y_real, y_pred):
@@ -349,41 +370,57 @@ class ForecasterTrainer:
         save_figure(plt.gcf(), self.figures_dir, "modelo_naive_comparison")
         plt.close()
 
-    def run_run02_calendar_diff(self):
+    def run_run02_business_rules(self):
         """
-        Tournament Phase 2: Calendar features + Differentiation.
-        Takes the Top 5 from Run 01 and tests with/without differentiation (d=1) 
-        and basic calendar features.
+        Tournament Phase 2: Business Rules.
+        Takes the Top candidates from Run 01 and tests with business rules.
         """
-        logger.info("--- EXECUTING RUN 02: Calendar & Differentiation Tournament ---")
+        logger.info("--- EXECUTING RUN 02: Business Rules ---")
         
         # 1. Configuration for this run
-        run_config = next((r for r in self.config['experiments'] if r['name'] == 'run_02_calendar_and_diff'), None)
+        run_name = 'run_02_business_rules'
+        run_config = next((r for r in self.config['experiments'] if r['name'] == run_name), None)
         if not run_config or not run_config.get('enabled', False):
-            logger.info("Run 02 is disabled or not found in config. Skipping.")
+            logger.info(f"{run_name} is disabled or not found in config. Skipping.")
             return
 
-        # 2. Get Top 5 candidates from previous phase
-        top_candidates_run01 = self.report.get("run_01_preprocessing_tournament", {}).get("top_candidates", [])
-        if not top_candidates_run01:
-            logger.error("No top candidates found from Run 01 (run_01_preprocessing_tournament). Cannot proceed to Run 02.")
+        # 2. Get Tournament Candidate from previous phase
+        prev_run_name = "run_01_core_weights"
+        prev_run = self.report.get(prev_run_name, {})
+        candidate_prev = prev_run.get("candidate_model")
+        
+        if not candidate_prev:
+            logger.error(f"No candidate model found from {prev_run_name}. Cannot proceed to Run 02.")
             return
 
         # 3. Parameters from config
         exog_features = run_config['exogenous_features']['features_to_use']
-        diff_options = run_config['preprocessing_options']['differentiation']
-        top_n = run_config['advance_criteria']['top_n']
+        
+        # Lean Strategy: Advancing ONLY the Top 1 candidate
+        logger.info(f"Lean Strategy: Advancing Candidate: {candidate_prev['model_name']}")
+        
+        # Setup weights if enabled
+        era_weight_func = None
+        training_opts = run_config.get('training_options', {})
+        if training_opts.get('use_weights', False):
+            logger.info("Weights by Era detected for Run 02. Applying.")
+            _ERA_WEIGHTS_DATA['events'] = training_opts.get('event_definitions', {})
+            _ERA_WEIGHTS_DATA['distributions'] = training_opts.get('weight_distribution', {})
+            era_weight_func = global_era_weight_func
         
         # We reuse the lags_grid from Run 01 if not defined in Run 02
-        run01_config = next((r for r in self.config['experiments'] if r['name'] == 'run_01_preprocessing_tournament'), {})
+        run01_config = next((r for r in self.config['experiments'] if r['name'] == prev_run_name), {})
         lags_grid = run_config.get('forecasting_parameters', {}).get('lags_grid', 
-                    run01_config.get('forecasting_parameters', {}).get('lags_grid', [[1, 6], [1, 2, 3, 6]]))
+                    run01_config.get('forecasting_parameters', {}).get('lags_grid', [[1, 6]]))
 
         # Prep data
         y_train = self.data_train[self.target]
         y_val = self.data_val[self.target]
         exog_train = self.data_train[exog_features]
         exog_val = self.data_val[exog_features]
+        
+        # Base exog from previous (none in run 01)
+        base_exog = [] 
         
         all_results = []
         
@@ -394,80 +431,80 @@ class ForecasterTrainer:
             'XGBRegressor': XGBRegressor
         }
 
-        for candidate in top_candidates_run01:
-            model_name = candidate['model_name']
-            trans_label = candidate['transformation']
-            base_params = candidate['params']
+        # Rule: Inheritance - Add the previous candidate to results without re-running
+        stay_candidate = candidate_prev.copy()
+        stay_candidate["experiment_type"] = "Stay (Inherited)"
+        orig_model_name = stay_candidate.get("original_model", candidate_prev["model_name"].split(" (")[0])
+        stay_candidate["model_name"] = f"{orig_model_name} (Stay (Inherited))"
+        all_results.append(stay_candidate)
+
+        # Run "Apply" experiment for the single candidate
+        model_name = candidate_prev['original_model']
+        trans_label = candidate_prev['transformation']
+        base_params = candidate_prev['params']
+        
+        regressor_class = model_map.get(model_name)
+        if regressor_class:
+            exp_name = "Apply (With Exog)"
+            current_exog = exog_features
             
-            regressor_class = model_map.get(model_name)
-            if not regressor_class:
-                continue
-
-            for d in diff_options:
-                logger.info(f"Testing Candidate: {model_name} | Trans: {trans_label} | Diff: d={d}")
+            logger.info(f"Running Experiment: {model_name} | {exp_name}")
+            
+            # Setup transformation
+            transformer_y = PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None
+            
+            # Regressor instance
+            if 'random_state' not in base_params and model_name != 'Ridge':
+                 instance_params = {**base_params, 'random_state': self.random_state}
+            else:
+                 instance_params = base_params
+            
+            if model_name == 'LightGBM' and 'verbose' not in instance_params:
+                 instance_params['verbose'] = -1
+            
+            regressor = regressor_class(**instance_params)
                 
-                # Setup transformation
-                transformer_y = PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None
+            forecaster = ForecasterDirect(
+                estimator=regressor,
+                lags=1, 
+                steps=len(self.data_val),
+                transformer_y=transformer_y,
+                differentiation=None,
+                window_features=self._get_rolling_features(run_config),
+                weight_func=era_weight_func
+            )
+            
+            cv = TimeSeriesFold(
+                initial_train_size = len(self.data_train),
+                steps              = len(self.data_val),
+                refit              = False,
+                differentiation    = None
+            )
                 
-                # Regressor instance with best params from Run 01
-                # Note: We use random_state=42 for reproducibility as per project rules
-                if 'random_state' not in base_params and model_name != 'Ridge':
-                     instance_params = {**base_params, 'random_state': self.random_state}
-                else:
-                     instance_params = base_params
-                
-                if model_name == 'LightGBM' and 'verbose' not in instance_params:
-                     instance_params['verbose'] = -1
-                
-                regressor = regressor_class(**instance_params)
-                
-                forecaster = ForecasterDirect(
-                    estimator=regressor,
-                    lags=1, 
-                    steps=len(self.data_val),
-                    transformer_y=transformer_y,
-                    differentiation=d if d > 0 else None,
-                    window_features=self._get_rolling_features(run_config)
+            param_grid_fixed = {k: [v] for k, v in base_params.items()}
+            
+            try:
+                results_grid = grid_search_forecaster(
+                    forecaster         = forecaster,
+                    y                  = pd.concat([y_train, y_val]),
+                    exog               = pd.concat([self.data_train[current_exog], self.data_val[current_exog]]),
+                    param_grid         = param_grid_fixed,
+                    lags_grid          = lags_grid,
+                    cv                 = cv,
+                    metric             = 'mean_absolute_error',
+                    return_best        = True,
+                    n_jobs             = 1,
+                    verbose            = False,
+                    show_progress      = False
                 )
                 
-                cv = TimeSeriesFold(
-                    initial_train_size = len(self.data_train),
-                    steps              = len(self.data_val),
-                    refit              = False,
-                    differentiation    = d if d > 0 else None
-                )
-                
-                # Force use of base_params by creating a grid with single values
-                param_grid_fixed = {k: [v] for k, v in base_params.items()}
-                
-                try:
-                    # 1. Grid Search for Lags (Hyperparams are fixed to candidate's best)
-                    results_grid = grid_search_forecaster(
-                        forecaster         = forecaster,
-                        y                  = pd.concat([y_train, y_val]),
-                        exog               = pd.concat([exog_train, exog_val]),
-                        param_grid         = param_grid_fixed,
-                        lags_grid          = lags_grid,
-                        cv                 = cv,
-                        metric             = 'mean_absolute_error',
-                        return_best        = True,
-                        n_jobs             = 1,
-                        verbose            = False,
-                        show_progress      = False
-                    )
-                    
-                    if results_grid.empty:
-                        logger.warning(f"Grid search empty for {model_name} | d={d}")
-                        continue
-                        
+                if not results_grid.empty:
                     best_row = results_grid.iloc[0]
-                    # The best configuration is now in 'forecaster' because return_best=True
-
-                    # 2. Backtesting for final metrics
+                    
                     metric_val, _ = backtesting_forecaster(
                         forecaster         = forecaster,
                         y                  = pd.concat([y_train, y_val]),
-                        exog               = pd.concat([exog_train, exog_val]),
+                        exog               = pd.concat([self.data_train[current_exog], self.data_val[current_exog]]),
                         cv                 = cv,
                         metric             = ['mean_absolute_error', 'mean_absolute_percentage_error'],
                         n_jobs             = 1,
@@ -478,216 +515,73 @@ class ForecasterTrainer:
                     mae_res = float(metric_val.iloc[0]['mean_absolute_error'])
                     mape_res = float(metric_val.iloc[0]['mean_absolute_percentage_error'])
                     
-                    logger.info(f"Result for {model_name} | Trans: {trans_label} | d={d}: MAE={mae_res:.2f}")
-
-                    # Calculate feature importance
                     feature_importance = self._get_feature_importances(forecaster)
 
-                    all_results.append({
-                        "model_name": model_name,
-                        "transformation": trans_label,
-                        "differentiation": d,
-                        "lags": [int(l) for l in best_row['lags']],
-                        "params": best_row['params'],
-                        "mae": mae_res,
-                        "mape": mape_res,
-                        "features_count": len(feature_importance),
-                        "feature_importance": feature_importance
-                    })
-
-                except Exception as e:
-                    logger.error(f"Error in Run 02 iteration for {model_name} | d={d}: {str(e)}")
-                    import traceback
-                    logger.debug(traceback.format_exc())
-                    continue
-
-        if not all_results:
-            logger.error("No models were successfully trained in Run 02.")
-            return
-
-        # Sort and select Top N
-        all_results.sort(key=lambda x: x['mae'])
-        top_candidates = all_results[:top_n]
-
-        # Calculate recommendations to drop for Top Candidates (Run 02 specific)
-        for candidate in top_candidates:
-            if not candidate["feature_importance"]:
-                candidate["variables_to_drop"] = []
-                continue
-                
-            # Find max magnitude to set 10% threshold
-            max_importance = max([f["magnitude"] for f in candidate["feature_importance"]])
-            threshold = 0.10 * max_importance
-            
-            # Identify which of the NEW features (from exog_features) are below threshold
-            to_drop = [
-                f["feature"] for f in candidate["feature_importance"]
-                if f["feature"] in exog_features and f["magnitude"] < threshold
-            ]
-            candidate["variables_to_drop"] = to_drop
-        
-        # Save run results in report
-        self.report["run_02_calendar_and_diff"] = {
-            "name": run_config['name'],
-            "exogenous_features": exog_features,
-            "all_results": all_results,
-            "top_candidates": top_candidates
-        }
-        
-        logger.info(f"Run 02 Finished. Best Candidate: {top_candidates[0]['model_name']} (d={top_candidates[0]['differentiation']}) with MAE: {top_candidates[0]['mae']:.2f}")
-
-    def run_run03_social_media(self):
-        """
-        Run 03: Social Media Investment.
-        Implements dual experiments for each Top 2 model from Run 02:
-        1. Experiment A: All features + New Social features (facebook/instagram).
-        2. Experiment B: Dirty features removed (based on Run 02 suggestions) + New Social features.
-        """
-        logger.info("--- EXECUTING RUN 03: SOCIAL MEDIA (Dual Experiment) ---")
-        run_name = "run_03_social_media"
-        prev_run_name = "run_02_calendar_and_diff"
-        
-        run_config = next((r for r in self.config['experiments'] if r['name'] == run_name), None)
-        if not run_config or not run_config.get('enabled', False):
-            return
-
-        prev_candidates = self.report.get(prev_run_name, {}).get("top_candidates", [])
-        if not prev_candidates:
-            logger.error(f"No top candidates found in {prev_run_name}")
-            return
-
-        new_exog = run_config['exogenous_features']['features_to_use'] # facebook, instagram
-        base_exog = self.report.get(prev_run_name, {}).get("exogenous_features", [])
-        
-        all_results = []
-        model_map = {
-            'Ridge': Ridge,
-            'RandomForest': RandomForestRegressor,
-            'LightGBM': LGBMRegressor,
-            'XGBRegressor': XGBRegressor
-        }
-
-        for candidate in prev_candidates:
-            model_name = candidate['model_name']
-            trans_label = candidate['transformation']
-            d = candidate.get('differentiation', 0)
-            vars_to_drop = candidate.get("variables_to_drop", [])
-            
-            # Experiments setup: [Name, features_to_use]
-            experiments = [
-                ("Dirty (All)", list(set(base_exog + new_exog))),
-                ("Clean (Reduced)", list(set([f for f in base_exog if f not in vars_to_drop] + new_exog)))
-            ]
-
-            for exp_name, current_exog in experiments:
-                logger.info(f"Running Experiment: {model_name} | {exp_name}")
-                
-                try:
-                    regressor_class = model_map[model_name]
-                    params = {**candidate['params']}
-                    if model_name != 'Ridge' and 'random_state' not in params:
-                        params['random_state'] = self.random_state
-                    if model_name == 'LightGBM' and 'verbose' not in params:
-                        params['verbose'] = -1
-                        
-                    regressor = regressor_class(**params)
-                    
-                    forecaster = ForecasterDirect(
-                        estimator=regressor,
-                        lags=candidate['lags'],
-                        steps=len(self.data_val),
-                        transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
-                        differentiation=d if d > 0 else None,
-                        window_features=self._get_rolling_features(run_config)
-                    )
-                    
-                    # Backtesting
-                    metric_val, _ = backtesting_forecaster(
-                        forecaster=forecaster,
-                        y=pd.concat([self.data_train[self.target], self.data_val[self.target]]),
-                        exog=pd.concat([self.data_train[current_exog], self.data_val[current_exog]]),
-                        cv=TimeSeriesFold(initial_train_size=len(self.data_train), steps=len(self.data_val), refit=False),
-                        metric=['mean_absolute_error', 'mean_absolute_percentage_error'],
-                        n_jobs=1,
-                        verbose=False
-                    )
-                    
-                    # Fit for importance
-                    forecaster.fit(
-                        y=self.data_train[self.target],
-                        exog=self.data_train[current_exog]
-                    )
-                    
-                    feature_importance = self._get_feature_importances(forecaster)
-                    
                     all_results.append({
                         "model_name": f"{model_name} ({exp_name})",
                         "original_model": model_name,
                         "experiment_type": exp_name,
                         "transformation": trans_label,
-                        "differentiation": d,
-                        "lags": candidate['lags'],
-                        "params": candidate['params'],
-                        "mae": float(metric_val.iloc[0]['mean_absolute_error']),
-                        "mape": float(metric_val.iloc[0]['mean_absolute_percentage_error']),
+                        "differentiation": 0,
+                        "lags": [int(l) for l in best_row['lags']],
+                        "params": best_row['params'],
+                        "mae": mae_res,
+                        "mape": mape_res,
                         "features_used": current_exog,
                         "features_count": len(feature_importance),
-                        "feature_importance": feature_importance
+                        "feature_importance": feature_importance,
+                        "weights_applied": True if era_weight_func else False
                     })
-                except Exception as e:
-                    logger.error(f"Error in Run 03 experiment {exp_name} for {model_name}: {str(e)}")
+
+            except Exception as e:
+                logger.error(f"Error in Run 02 Apply for {model_name}: {str(e)}")
 
         if not all_results:
+            logger.error("No models were successfully trained in Run 02.")
             return
 
+        # Sort and select Best (Lean Strategy)
         all_results.sort(key=lambda x: x['mae'])
-        top_candidates = all_results[:2] # Top 2 as requested
+        candidate_model = all_results[0]
 
-        # Calculate recommendations to drop for Top Candidates (Run 03)
-        for candidate in top_candidates:
-            if not candidate["feature_importance"]:
-                candidate["variables_to_drop"] = []
-                continue
-            
-            # Use current features_used as the universe of features to evaluate
-            current_features = candidate["features_used"]
-            
-            # Find max magnitude to set 10% threshold
-            max_importance = max([f["magnitude"] for f in candidate["feature_importance"]])
+        # Calculate recommendations to drop (only if Apply won)
+        if candidate_model["experiment_type"] == "Apply (With Exog)":
+            max_importance = max([f["magnitude"] for f in candidate_model["feature_importance"]]) if candidate_model["feature_importance"] else 0
             threshold = 0.10 * max_importance
             
-            # Identify which of the current exogenous features are below threshold
             to_drop = [
-                f["feature"] for f in candidate["feature_importance"]
-                if f["feature"] in current_features and f["magnitude"] < threshold
+                f["feature"] for f in candidate_model["feature_importance"]
+                if f["feature"] in exog_features and f["magnitude"] < threshold
             ]
-            candidate["variables_to_drop"] = to_drop
-
+            candidate_model["variables_to_drop"] = to_drop
+        else:
+            candidate_model["variables_to_drop"] = candidate_prev.get("variables_to_drop", [])
+        
+        # Save run results in report
         self.report[run_name] = {
             "name": run_config['name'],
-            "exogenous_added": new_exog,
+            "exogenous_features": candidate_model['features_used'],
             "all_results": all_results,
-            "top_candidates": top_candidates
+            "candidate_model": candidate_model
         }
-        logger.info(f"Run 03 Finished. Best performance: {top_candidates[0]['model_name']} with MAE: {top_candidates[0]['mae']:.2f}")
+        
+        logger.info(f"Run 02 Finished. Best Candidate: {candidate_model['model_name']} with MAE: {candidate_model['mae']:.2f}")
 
-    def run_run04_macroeconomics(self):
+
+    def run_run03_minimal_calendar(self):
         """
-        Run 04: Macroeconomics.
-        Implements dual experiments for each Top 2 model from Run 03:
-        1. Experiment A: All features from Run 03 + New Macro features.
-        2. Experiment B: Dirty features removed (based on Run 03 suggestions) + New Macro features.
+        Run 03: Minimal Calendar features.
         """
-        logger.info("--- EXECUTING RUN 04: MACROECONOMICS (Dual Experiment) ---")
-        run_name = "run_04_macroeconomics"
-        prev_run_name = "run_03_social_media"
+        logger.info("--- EXECUTING RUN 03: MINIMAL CALENDAR ---")
+        run_name = "run_03_minimal_calendar"
+        prev_run_name = "run_02_business_rules"
         
         run_config = next((r for r in self.config['experiments'] if r['name'] == run_name), None)
         if not run_config or not run_config.get('enabled', False):
             return
 
-        prev_candidates = self.report.get(prev_run_name, {}).get("top_candidates", [])
-        if not prev_candidates:
+        candidate_prev = self.report.get(prev_run_name, {}).get("candidate_model")
+        if not candidate_prev:
             logger.error(f"No top candidates found in {prev_run_name}")
             return
 
@@ -701,307 +595,31 @@ class ForecasterTrainer:
             'XGBRegressor': XGBRegressor
         }
 
-        for candidate in prev_candidates:
-            # We use the previous model's configuration
-            source_model_name = candidate['model_name']
-            base_model_key = candidate.get('original_model', 'Ridge')
-            
-            trans_label = candidate['transformation']
-            d = candidate.get('differentiation', 0)
-            vars_to_drop = candidate.get("variables_to_drop", [])
-            base_exog = candidate.get('features_used', [])
-            
-            # Experiments setup: [Name, features_to_use]
-            experiments = [
-                ("Dirty (All)", list(set(base_exog + new_exog))),
-                ("Clean (Reduced)", list(set([f for f in base_exog if f not in vars_to_drop] + new_exog)))
-            ]
+        # Rule: Inheritance - Add the previous candidate to results without re-running
+        stay_candidate = candidate_prev.copy()
+        stay_candidate["experiment_type"] = "Stay (Inherited)"
+        orig_model_name = stay_candidate.get("original_model", candidate_prev["model_name"].split(" (")[0])
+        stay_candidate["model_name"] = f"{orig_model_name} (Stay (Inherited))"
+        all_results.append(stay_candidate)
 
-            for exp_name, current_exog in experiments:
-                logger.info(f"Running Experiment: {source_model_name} | {exp_name}")
-                
-                try:
-                    regressor_class = model_map.get(base_model_key, Ridge)
-                    params = {**candidate['params']}
-                    if base_model_key != 'Ridge' and 'random_state' not in params:
-                        params['random_state'] = self.random_state
-                    if base_model_key == 'LightGBM' and 'verbose' not in params:
-                        params['verbose'] = -1
-                        
-                    regressor = regressor_class(**params)
-                    
-                    forecaster = ForecasterDirect(
-                        estimator=regressor,
-                        lags=candidate['lags'],
-                        steps=len(self.data_val),
-                        transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
-                        differentiation=d if d > 0 else None,
-                        window_features=self._get_rolling_features(run_config)
-                    )
-                    
-                    # Backtesting
-                    metric_val, _ = backtesting_forecaster(
-                        forecaster=forecaster,
-                        y=pd.concat([self.data_train[self.target], self.data_val[self.target]]),
-                        exog=pd.concat([self.data_train[current_exog], self.data_val[current_exog]]),
-                        cv=TimeSeriesFold(initial_train_size=len(self.data_train), steps=len(self.data_val), refit=False),
-                        metric=['mean_absolute_error', 'mean_absolute_percentage_error'],
-                        n_jobs=1,
-                        verbose=False
-                    )
-                    
-                    # Fit for importance
-                    forecaster.fit(
-                        y=self.data_train[self.target],
-                        exog=self.data_train[current_exog]
-                    )
-                    
-                    feature_importance = self._get_feature_importances(forecaster)
-                    
-                    all_results.append({
-                        "model_name": f"{source_model_name} ({exp_name})",
-                        "original_model": base_model_key,
-                        "experiment_type": exp_name,
-                        "source_experiment": source_model_name,
-                        "transformation": trans_label,
-                        "differentiation": d,
-                        "lags": candidate['lags'],
-                        "params": candidate['params'],
-                        "mae": float(metric_val.iloc[0]['mean_absolute_error']),
-                        "mape": float(metric_val.iloc[0]['mean_absolute_percentage_error']),
-                        "features_used": current_exog,
-                        "features_count": len(feature_importance),
-                        "feature_importance": feature_importance
-                    })
-                except Exception as e:
-                    logger.error(f"Error in Run 04 experiment {exp_name} for {source_model_name}: {str(e)}")
-
-        if not all_results:
-            return
-
-        all_results.sort(key=lambda x: x['mae'])
-        top_candidates = all_results[:2]
-
-        # Calculate recommendations to drop for Top Candidates (Run 04)
-        for candidate in top_candidates:
-            if not candidate["feature_importance"]:
-                candidate["variables_to_drop"] = []
-                continue
-            
-            current_features = candidate["features_used"]
-            max_importance = max([f["magnitude"] for f in candidate["feature_importance"]])
-            threshold = 0.10 * max_importance
-            
-            to_drop = [
-                f["feature"] for f in candidate["feature_importance"]
-                if f["feature"] in current_features and f["magnitude"] < threshold
-            ]
-            candidate["variables_to_drop"] = to_drop
-
-        self.report[run_name] = {
-            "name": run_config['name'],
-            "exogenous_added": new_exog,
-            "all_results": all_results,
-            "top_candidates": top_candidates
-        }
-        logger.info(f"Run 04 Finished. Best MAE: {top_candidates[0]['mae']:.2f}")
-
-    def run_run05_structural_hacks(self):
-        """
-        Run 05: Structural Hacks.
-        Implements dual experiments for each Top 2 model from Run 04:
-        1. Experiment A: All features from Run 04 + New Structural features.
-        2. Experiment B: Dirty features removed (based on Run 04 suggestions) + New Structural features.
-        Unique rule: Only reports Top 1 candidate.
-        """
-        logger.info("--- EXECUTING RUN 05: STRUCTURAL HACKS (Dual Experiment) ---")
-        run_name = "run_05_structural_hacks"
-        prev_run_name = "run_04_macroeconomics"
+        # Experiments setup for current champion
+        base_model_key = candidate_prev.get('original_model', 'Ridge')
+        trans_label = candidate_prev['transformation']
+        d = candidate_prev.get('differentiation', 0)
+        vars_to_drop = candidate_prev.get("variables_to_drop", [])
+        base_exog = candidate_prev.get('features_used', [])
         
-        run_config = next((r for r in self.config['experiments'] if r['name'] == run_name), None)
-        if not run_config or not run_config.get('enabled', False):
-            return
-
-        prev_candidates = self.report.get(prev_run_name, {}).get("top_candidates", [])
-        if not prev_candidates:
-            logger.error(f"No top candidates found in {prev_run_name}")
-            return
-
-        new_exog = run_config['exogenous_features']['features_to_use']
-        
-        all_results = []
-        model_map = {
-            'Ridge': Ridge,
-            'RandomForest': RandomForestRegressor,
-            'LightGBM': LGBMRegressor,
-            'XGBRegressor': XGBRegressor
-        }
-
-        for candidate in prev_candidates:
-            source_model_name = candidate['model_name']
-            base_model_key = candidate.get('original_model', 'Ridge')
-            
-            trans_label = candidate['transformation']
-            d = candidate.get('differentiation', 0)
-            vars_to_drop = candidate.get("variables_to_drop", [])
-            base_exog = candidate.get('features_used', [])
-            
-            # Experiments setup
-            experiments = [
-                ("Dirty (All)", list(set(base_exog + new_exog))),
-                ("Clean (Reduced)", list(set([f for f in base_exog if f not in vars_to_drop] + new_exog)))
-            ]
-
-            for exp_name, current_exog in experiments:
-                logger.info(f"Running Experiment: {source_model_name} | {exp_name}")
-                
-                try:
-                    regressor_class = model_map.get(base_model_key, Ridge)
-                    params = {**candidate['params']}
-                    if base_model_key != 'Ridge' and 'random_state' not in params:
-                        params['random_state'] = self.random_state
-                    if base_model_key == 'LightGBM' and 'verbose' not in params:
-                        params['verbose'] = -1
-                        
-                    regressor = regressor_class(**params)
-                    
-                    forecaster = ForecasterDirect(
-                        estimator=regressor,
-                        lags=candidate['lags'],
-                        steps=len(self.data_val),
-                        transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
-                        differentiation=d if d > 0 else None,
-                        window_features=self._get_rolling_features(run_config)
-                    )
-                    
-                    # Backtesting
-                    metric_val, _ = backtesting_forecaster(
-                        forecaster=forecaster,
-                        y=pd.concat([self.data_train[self.target], self.data_val[self.target]]),
-                        exog=pd.concat([self.data_train[current_exog], self.data_val[current_exog]]),
-                        cv=TimeSeriesFold(initial_train_size=len(self.data_train), steps=len(self.data_val), refit=False),
-                        metric=['mean_absolute_error', 'mean_absolute_percentage_error'],
-                        n_jobs=1,
-                        verbose=False
-                    )
-                    
-                    # Fit for importance
-                    forecaster.fit(
-                        y=self.data_train[self.target],
-                        exog=self.data_train[current_exog]
-                    )
-                    
-                    feature_importance = self._get_feature_importances(forecaster)
-                    
-                    all_results.append({
-                        "model_name": f"{source_model_name} ({exp_name})",
-                        "original_model": base_model_key,
-                        "experiment_type": exp_name,
-                        "source_experiment": source_model_name,
-                        "transformation": trans_label,
-                        "differentiation": d,
-                        "lags": candidate['lags'],
-                        "params": candidate['params'],
-                        "mae": float(metric_val.iloc[0]['mean_absolute_error']),
-                        "mape": float(metric_val.iloc[0]['mean_absolute_percentage_error']),
-                        "features_used": current_exog,
-                        "features_count": len(feature_importance),
-                        "feature_importance": feature_importance
-                    })
-                except Exception as e:
-                    logger.error(f"Error in Run 05 experiment {exp_name} for {source_model_name}: {str(e)}")
-
-        if not all_results:
-            return
-
-        all_results.sort(key=lambda x: x['mae'])
-        # Unique instruction: only report TOP 1
-        top_candidates = all_results[:1]
-
-        # Calculate recommendations to drop for the winner
-        for candidate in top_candidates:
-            current_features = candidate["features_used"]
-            if candidate["feature_importance"]:
-                max_importance = max([f["magnitude"] for f in candidate["feature_importance"]])
-                threshold = 0.10 * max_importance
-                to_drop = [
-                    f["feature"] for f in candidate["feature_importance"]
-                    if f["feature"] in current_features and f["magnitude"] < threshold
-                ]
-                candidate["variables_to_drop"] = to_drop
-            else:
-                candidate["variables_to_drop"] = []
-
-        self.report[run_name] = {
-            "name": run_config['name'],
-            "exogenous_added": new_exog,
-            "all_results": all_results,
-            "top_candidates": top_candidates
-        }
-        logger.info(f"Run 05 Finished. Winner: {top_candidates[0]['model_name']} with MAE: {top_candidates[0]['mae']:.2f}")
-
-    def run_run_final_champion(self):
-        """
-        Final Champion Run:
-        Takes the Top 1 candidate from Run 05 and performs dual experiments using Eras weighting:
-        1. Experiment A: Top 1 features (Dirty) + Eras.
-        2. Experiment B: Top 1 features (Clean/Reduced) + Eras.
-        """
-        logger.info("--- EXECUTING FINAL CHAMPION RUN: Weighting by Eras (Dual Experiment) ---")
-        run_name = "run_final_champion"
-        prev_run_name = "run_05_structural_hacks"
-        
-        run_config = next((r for r in self.config['experiments'] if r['name'] == run_name), None)
-        if not run_config or not run_config.get('enabled', False):
-            return
-
-        # Get the absolute Top 1 from Run 05
-        top_1_candidate = self.report.get(prev_run_name, {}).get("top_candidates", [None])[0]
-        if not top_1_candidate:
-            logger.error(f"No top candidate found in {prev_run_name}")
-            return
-
-        # Prepare Era-based weights
-        weights_config = run_config['training_options']
-        distributions = weights_config['weight_distribution']
-        events = weights_config['event_definitions']
-        
-        # Populate global store for the top-level function
-        global _ERA_WEIGHTS_DATA
-        _ERA_WEIGHTS_DATA['events'] = events
-        _ERA_WEIGHTS_DATA['distributions'] = distributions
-        
-        era_weight_func = global_era_weight_func
-
-        # Prepare full data for backtesting
-        full_data = pd.concat([self.data_train, self.data_val])
-        
-        all_results = []
-        model_map = {
-            'Ridge': Ridge,
-            'RandomForest': RandomForestRegressor,
-            'LightGBM': LGBMRegressor,
-            'XGBRegressor': XGBRegressor
-        }
-
-        source_model_name = top_1_candidate['model_name']
-        base_model_key = top_1_candidate.get('original_model', 'Ridge')
-        trans_label = top_1_candidate['transformation']
-        d = top_1_candidate.get('differentiation', 0)
-        vars_to_drop = top_1_candidate.get("variables_to_drop", [])
-        dirty_exog = top_1_candidate.get('features_used', [])
-        clean_exog = [f for f in dirty_exog if f not in vars_to_drop]
-
         experiments = [
-            ("Dirty + Eras", dirty_exog),
-            ("Clean + Eras", clean_exog)
+            ("Dirty (All)", list(set(base_exog + new_exog))),
+            ("Clean (Reduced)", list(set([f for f in base_exog if f not in vars_to_drop] + new_exog)))
         ]
 
         for exp_name, current_exog in experiments:
-            logger.info(f"Running Final Experiment: {exp_name}")
+            logger.info(f"Running Experiment: {candidate_prev['model_name']} | {exp_name}")
+            
             try:
                 regressor_class = model_map.get(base_model_key, Ridge)
-                params = {**top_1_candidate['params']}
+                params = {**candidate_prev['params']}
                 if base_model_key != 'Ridge' and 'random_state' not in params:
                     params['random_state'] = self.random_state
                 if base_model_key == 'LightGBM' and 'verbose' not in params:
@@ -1009,137 +627,201 @@ class ForecasterTrainer:
                     
                 regressor = regressor_class(**params)
                 
-                # In skforecast 0.20.1, weights are handled by weight_func passed to the constructor.
-                # Backtesting and fit will call this function internally.
                 forecaster = ForecasterDirect(
                     estimator=regressor,
-                    lags=top_1_candidate['lags'],
+                    lags=candidate_prev['lags'],
                     steps=len(self.data_val),
                     transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
                     differentiation=d if d > 0 else None,
-                    weight_func=era_weight_func,
                     window_features=self._get_rolling_features(run_config)
                 )
                 
+                # Backtesting
                 metric_val, _ = backtesting_forecaster(
                     forecaster=forecaster,
-                    y=full_data[self.target],
-                    exog=full_data[current_exog],
+                    y=pd.concat([self.data_train[self.target], self.data_val[self.target]]),
+                    exog=pd.concat([self.data_train[current_exog], self.data_val[current_exog]]),
                     cv=TimeSeriesFold(initial_train_size=len(self.data_train), steps=len(self.data_val), refit=False),
                     metric=['mean_absolute_error', 'mean_absolute_percentage_error'],
                     n_jobs=1,
                     verbose=False
                 )
-
-                # Explicit fit to extract importance (weights are applied automatically via weight_func)
-                forecaster.fit(
-                    y=self.data_train[self.target],
-                    exog=self.data_train[current_exog]
-                )
                 
+                # Fit for importance
+                forecaster.fit(y=self.data_train[self.target], exog=self.data_train[current_exog])
                 feature_importance = self._get_feature_importances(forecaster)
                 
-                mae_val = float(metric_val.iloc[0]['mean_absolute_error'])
-                mape_val = float(metric_val.iloc[0]['mean_absolute_percentage_error'])
-                
-                logger.info(f"Final Experiment {exp_name} | MAE: {mae_val:.2f} | MAPE: {mape_val:.4f}")
-
                 all_results.append({
-                    "model_name": f"{source_model_name} ({exp_name})",
+                    "model_name": f"{orig_model_name} ({exp_name})",
                     "original_model": base_model_key,
-                    "params": params,
-                    "lags": top_1_candidate['lags'],
+                    "experiment_type": exp_name,
                     "transformation": trans_label,
                     "differentiation": d,
+                    "lags": candidate_prev['lags'],
+                    "params": candidate_prev['params'],
+                    "mae": float(metric_val.iloc[0]['mean_absolute_error']),
+                    "mape": float(metric_val.iloc[0]['mean_absolute_percentage_error']),
                     "features_used": current_exog,
-                    "mae": mae_val,
-                    "mape": mape_val,
+                    "features_count": len(feature_importance),
                     "feature_importance": feature_importance,
-                    "weights_applied": True
+                    "weights_applied": candidate_prev.get("weights_applied", False)
                 })
             except Exception as e:
-                import traceback
-                logger.error(f"Error in Final Champion experiment {exp_name}: {str(e)}")
-                logger.error(traceback.format_exc())
+                logger.error(f"Error in Run 03 experiment {exp_name} for {orig_model_name}: {str(e)}")
 
         if not all_results:
-            logger.error("No results produced in Final Champion Run.")
+            logger.error("No models were successfully trained in Run 03.")
             return
 
         all_results.sort(key=lambda x: x['mae'])
+        candidate_model = all_results[0]
+
+        # Calculate recommendations to drop
+        if candidate_model["feature_importance"]:
+            max_importance = max([f["magnitude"] for f in candidate_model["feature_importance"]])
+            threshold = 0.10 * max_importance
+            candidate_model["variables_to_drop"] = [
+                f["feature"] for f in candidate_model["feature_importance"]
+                if f["feature"] in candidate_model["features_used"] and f["magnitude"] < threshold
+            ]
+        else:
+            candidate_model["variables_to_drop"] = candidate_prev.get("variables_to_drop", [])
+
         self.report[run_name] = {
             "name": run_config['name'],
+            "exogenous_features": candidate_model["features_used"],
             "all_results": all_results,
-            "top_candidates": all_results[:1] 
+            "candidate_model": candidate_model
         }
-        logger.info(f"Final Champion Finished. Winner: {all_results[0]['model_name']} with MAE: {all_results[0]['mae']:.2f}")
+        logger.info(f"Run 03 Finished. Best performance: {candidate_model['model_name']} with MAE: {candidate_model['mae']:.2f}")
 
-    def _run_exogenous_run(self, run_name, prev_run_name, top_n_to_select):
-        """Generic helper for exogenous addition runs."""
-        logger.info(f"--- EXECUTING {run_name.upper()} ---")
+    def run_run04_external_shock(self):
+        """
+        Run 04: External shock variables.
+        """
+        logger.info("--- EXECUTING RUN 04: EXTERNAL SHOCK ---")
+        run_name = "run_04_external_shock"
+        prev_run_name = "run_03_minimal_calendar"
+        
         run_config = next((r for r in self.config['experiments'] if r['name'] == run_name), None)
-        if not run_config or not run_config.get('enabled', False): return
+        if not run_config or not run_config.get('enabled', False):
+            return
 
-        prev_candidates = self.report.get(prev_run_name, {}).get("top_candidates", [])
-        if not prev_candidates: return
+        candidate_prev = self.report.get(prev_run_name, {}).get("candidate_model")
+        if not candidate_prev:
+            logger.error(f"No top candidate found in {prev_run_name}")
+            return
 
         new_exog = run_config['exogenous_features']['features_to_use']
-        base_exog = self.report.get(prev_run_name, {}).get("exogenous_features", [])
-        combined_exog = list(set(base_exog + new_exog))
-
+        
         all_results = []
-        model_map = {'Ridge': Ridge, 'RandomForest': RandomForestRegressor, 'LightGBM': LGBMRegressor, 'XGBRegressor': XGBRegressor}
+        model_map = {
+            'Ridge': Ridge,
+            'RandomForest': RandomForestRegressor,
+            'LightGBM': LGBMRegressor,
+            'XGBRegressor': XGBRegressor
+        }
 
-        for candidate in prev_candidates:
-            model_name, trans_label, d = candidate['model_name'], candidate['transformation'], candidate.get('differentiation', 0)
-            regressor_class = model_map[model_name]
-            
-            # Setup params
-            params = {**candidate['params']}
-            if model_name != 'Ridge' and 'random_state' not in params:
-                params['random_state'] = self.random_state
-            if model_name == 'LightGBM' and 'verbose' not in params:
-                params['verbose'] = -1
-                
-            regressor = regressor_class(**params)
-            
-            forecaster = ForecasterDirect(
-                estimator=regressor, lags=candidate['lags'], steps=len(self.data_val),
-                transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
-                differentiation=d if d > 0 else None,
-                window_features=self._get_rolling_features(run_config)
-            )
+        # Rule: Inheritance - Add the previous candidate to results without re-running
+        stay_candidate = candidate_prev.copy()
+        stay_candidate["experiment_type"] = "Stay (Inherited)"
+        orig_model_name = stay_candidate.get("original_model", candidate_prev["model_name"].split(" (")[0])
+        stay_candidate["model_name"] = f"{orig_model_name} (Stay (Inherited))"
+        all_results.append(stay_candidate)
+
+        # Experiments setup for current champion
+        base_model_key = candidate_prev.get('original_model', 'Ridge')
+        trans_label = candidate_prev['transformation']
+        d = candidate_prev.get('differentiation', 0)
+        vars_to_drop = candidate_prev.get("variables_to_drop", [])
+        base_exog = candidate_prev.get('features_used', [])
+
+        experiments = [
+            ("Dirty (All)", list(set(base_exog + new_exog))),
+            ("Clean (Reduced)", list(set([f for f in base_exog if f not in vars_to_drop] + new_exog)))
+        ]
+
+        for exp_name, current_exog in experiments:
+            logger.info(f"Running Experiment: {candidate_prev['model_name']} | {exp_name}")
             
             try:
+                regressor_class = model_map.get(base_model_key, Ridge)
+                params = {**candidate_prev['params']}
+                if base_model_key != 'Ridge' and 'random_state' not in params:
+                    params['random_state'] = self.random_state
+                if base_model_key == 'LightGBM' and 'verbose' not in params:
+                    params['verbose'] = -1
+                    
+                regressor = regressor_class(**params)
+                
+                forecaster = ForecasterDirect(
+                    estimator=regressor,
+                    lags=candidate_prev['lags'],
+                    steps=len(self.data_val),
+                    transformer_y=PowerTransformer(method='yeo-johnson') if trans_label == 'Yeo-Johnson' else None,
+                    differentiation=d if d > 0 else None,
+                    window_features=self._get_rolling_features(run_config)
+                )
+                
+                # Backtesting
                 metric_val, _ = backtesting_forecaster(
-                    forecaster=forecaster, y=pd.concat([self.data_train[self.target], self.data_val[self.target]]),
-                    exog=pd.concat([self.data_train[combined_exog], self.data_val[combined_exog]]),
+                    forecaster=forecaster,
+                    y=pd.concat([self.data_train[self.target], self.data_val[self.target]]),
+                    exog=pd.concat([self.data_train[current_exog], self.data_val[current_exog]]),
                     cv=TimeSeriesFold(initial_train_size=len(self.data_train), steps=len(self.data_val), refit=False),
-                    metric=['mean_absolute_error', 'mean_absolute_percentage_error'], n_jobs=1, verbose=False
+                    metric=['mean_absolute_error', 'mean_absolute_percentage_error'],
+                    n_jobs=1,
+                    verbose=False
                 )
                 
-                # 2. Explicit fit to extract importance
-                forecaster.fit(
-                    y=self.data_train[self.target],
-                    exog=self.data_train[combined_exog]
-                )
-                
+                # Fit for importance
+                forecaster.fit(y=self.data_train[self.target], exog=self.data_train[current_exog])
                 feature_importance = self._get_feature_importances(forecaster)
+                
                 all_results.append({
-                    "model_name": model_name, "transformation": trans_label, "differentiation": d,
-                    "lags": candidate['lags'], "params": candidate['params'],
+                    "model_name": f"{orig_model_name} ({exp_name})",
+                    "original_model": base_model_key,
+                    "experiment_type": exp_name,
+                    "transformation": trans_label,
+                    "differentiation": d,
+                    "lags": candidate_prev['lags'],
+                    "params": candidate_prev['params'],
                     "mae": float(metric_val.iloc[0]['mean_absolute_error']),
                     "mape": float(metric_val.iloc[0]['mean_absolute_percentage_error']),
-                    "features_count": len(feature_importance), "feature_importance": feature_importance
+                    "features_used": current_exog,
+                    "features_count": len(feature_importance),
+                    "feature_importance": feature_importance,
+                    "weights_applied": candidate_prev.get("weights_applied", False)
                 })
-            except Exception as e: logger.error(f"Error in {run_name} for {model_name}: {str(e)}")
+            except Exception as e:
+                logger.error(f"Error in Run 04 experiment {exp_name} for {orig_model_name}: {str(e)}")
 
-        if not all_results: return
+        if not all_results:
+            logger.error("No models were successfully trained in Run 04.")
+            return
+
+        # Sort and select Best (Lean Strategy)
         all_results.sort(key=lambda x: x['mae'])
+        candidate_model = all_results[0]
+
+        # Calculate recommendations to drop
+        if candidate_model["feature_importance"]:
+            max_importance = max([f["magnitude"] for f in candidate_model["feature_importance"]])
+            threshold = 0.10 * max_importance
+            candidate_model["variables_to_drop"] = [
+                f["feature"] for f in candidate_model["feature_importance"]
+                if f["feature"] in candidate_model["features_used"] and f["magnitude"] < threshold
+            ]
+        else:
+            candidate_model["variables_to_drop"] = candidate_prev.get("variables_to_drop", [])
+
         self.report[run_name] = {
             "name": run_config['name'],
-            "exogenous_features": combined_exog, "all_results": all_results, "top_candidates": all_results[:top_n_to_select]
+            "exogenous_features": candidate_model["features_used"],
+            "all_results": all_results,
+            "candidate_model": candidate_model
         }
+        logger.info(f"Run 04 Finished. Best MAE: {candidate_model['mae']:.2f}")
 
     def _get_feature_importances(self, forecaster):
         """
@@ -1193,19 +875,15 @@ class ForecasterTrainer:
 
     def run_all_experiments(self):
         """
-        Orchestrates all tournament runs from 01 to Final Champion.
+        Orchestrates all tournament runs from 01 to 04.
         """
-        self.run_run01_preprocessing()
+        self.run_run01_core_weights()
         self.save_intermediate_report()
-        self.run_run02_calendar_diff()
+        self.run_run02_business_rules()
         self.save_intermediate_report()
-        self.run_run03_social_media()
+        self.run_run03_minimal_calendar()
         self.save_intermediate_report()
-        self.run_run04_macroeconomics()
-        self.save_intermediate_report()
-        self.run_run05_structural_hacks()
-        self.save_intermediate_report()
-        self.run_run_final_champion()
+        self.run_run04_external_shock()
         self.save_intermediate_report()
 
     def save_final_report(self):
@@ -1215,12 +893,17 @@ class ForecasterTrainer:
         """
         logger.info(f"Finalizing Modeling tournament. Saving official report to {self.reports_dir}")
         
-        # Determine champion from final run
-        final_run = self.report.get("run_final_champion", {})
-        top_candidates = final_run.get("top_candidates", [])
+        # Determine champion from last enabled run
+        runs_to_check = ["run_04_external_shock", "run_03_minimal_calendar", "run_02_business_rules", "run_01_core_weights"]
+        champion = None
+        for run_name in runs_to_check:
+            run_data = self.report.get(run_name, {})
+            candidate = run_data.get("candidate_model")
+            if candidate:
+                champion = candidate
+                break
         
-        if top_candidates:
-            champion = top_candidates[0]
+        if champion:
             self.report["champion_summary"] = {
                 "model_name": champion["model_name"],
                 "original_model": champion.get("original_model"),
@@ -1258,7 +941,7 @@ class ForecasterTrainer:
         params = champion["params"]
         trans = champion["transformation"]
         diff = champion["differentiation"]
-        use_eras = champion["used_era_weights"]
+        use_eras = champion.get("used_era_weights", False)
         
         model_map = {
             'Ridge': Ridge, 'RandomForest': RandomForestRegressor,
@@ -1275,21 +958,24 @@ class ForecasterTrainer:
         # 2. Setup Weight Function if needed
         weight_func = None
         if use_eras:
-            # We assume current session still has _ERA_WEIGHTS_DATA or we re-fetch from report
-            # For robustness, we check the global store
             global _ERA_WEIGHTS_DATA
             if not _ERA_WEIGHTS_DATA:
                 logger.info("Restoring era weights from config for reconstruction...")
-                run_config = next((r for r in self.config['experiments'] if r['name'] == "run_final_champion"), None)
-                if run_config:
-                    w_cfg = run_config['training_options']
-                    _ERA_WEIGHTS_DATA['events'] = w_cfg['event_definitions']
-                    _ERA_WEIGHTS_DATA['distributions'] = w_cfg['weight_distribution']
+                # Try to find run with weights enabled
+                for run_cfg in self.config['experiments']:
+                    if run_cfg.get('training_options', {}).get('use_weights', False):
+                        w_cfg = run_cfg['training_options']
+                        _ERA_WEIGHTS_DATA['events'] = w_cfg['event_definitions']
+                        _ERA_WEIGHTS_DATA['distributions'] = w_cfg['weight_distribution']
+                        break
             
-            weight_func = global_era_weight_func
+            if _ERA_WEIGHTS_DATA:
+                weight_func = global_era_weight_func
 
         # 3. Instantiate Forecaster
-        run_config_final = next((r for r in self.config['experiments'] if r['name'] == "run_final_champion"), {})
+        # Fallback config for window features
+        run_config_ref = next((r for r in self.config['experiments'] if r.get('enabled', False)), {})
+        
         forecaster = ForecasterDirect(
             estimator=regressor,
             lags=lags,
@@ -1297,7 +983,7 @@ class ForecasterTrainer:
             transformer_y=PowerTransformer(method='yeo-johnson') if trans == 'Yeo-Johnson' else None,
             differentiation=diff if diff > 0 else None,
             weight_func=weight_func,
-            window_features=self._get_rolling_features(run_config_final)
+            window_features=self._get_rolling_features(run_config_ref)
         )
 
         # 4. Train on combined Train + Validation (to predict Test)
@@ -1350,11 +1036,11 @@ class ForecasterTrainer:
             "under_forecasting_pct": float(len(under_forecasting) / len(y_test)) if len(y_test) > 0 else 0,
             "over_forecasting_count": int(len(over_forecasting)),
             "over_forecasting_pct": float(len(over_forecasting) / len(y_test)) if len(y_test) > 0 else 0,
-            "max_error_subestimation": float(residuals.max()),
-            "min_error_overestimation": float(residuals.min()),
-            "mean_error": float(residuals.mean()),
-            "median_error": float(residuals.median()),
-            "std_error": float(residuals.std()),
+            "max_error_subestimation": float(residuals.max()) if not residuals.empty else 0,
+            "min_error_overestimation": float(residuals.min()) if not residuals.empty else 0,
+            "mean_error": float(residuals.mean()) if not residuals.empty else 0,
+            "median_error": float(residuals.median()) if not residuals.empty else 0,
+            "std_error": float(residuals.std()) if not residuals.empty else 0,
             "mae": float(test_mae),
             "rmse": float(test_rmse)
         }
@@ -1372,7 +1058,7 @@ class ForecasterTrainer:
             transformer_y=PowerTransformer(method='yeo-johnson') if trans == 'Yeo-Johnson' else None,
             differentiation=diff if diff > 0 else None,
             weight_func=weight_func,
-            window_features=self._get_rolling_features(run_config_final)
+            window_features=self._get_rolling_features(run_config_ref)
         )
         final_forecaster.fit(y=y_full, exog=exog_full, store_in_sample_residuals=True)
 

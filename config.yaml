@@ -1,6 +1,6 @@
 general:
   project_name: "Mi Buñuelito Forecasting"
-  execution_mode: "forecast" # Opciones: "train", "forecast"
+  execution_mode: "train" # Opciones: "train", "forecast"
   random_state: 42
   horizon: 6
   mandatory_history_months: 36
@@ -388,111 +388,17 @@ baseline_models:
       differentiation: 0
 
 # ==============================================================================
-# 8. LISTA DE EXPERIMENTOS (Torneo de Selección Progresiva)
+# 8. LISTA DE EXPERIMENTOS (Torneo de Selección Progresiva - Limpieza Total)
 # ==============================================================================
 experiments:
-  # PASO 3: Selección de Preprocesamiento (Top 5)
-  - name: 'run_01_preprocessing_tournament'
+  # PASO 3: El Núcleo y la Dictadura del Presente (Serie Pura + Pesos)
+  - name: 'run_01_core_weights'
     enabled: true
+    description: 'Fase 1: Serie pura + Lags. Sin diferenciación. Uso obligatorio de Pesos por Eras.'
     window_features:
       enabled: true
-      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
-      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
-    description: 'Torneo Fase 1: Evaluación de modelos con y sin transformación Yeo-Johnson sobre serie endógena. Selección del Top 5.'
-    models_to_train:
-      - 'Ridge'
-      - 'RandomForest'
-      - 'LightGBM'
-      - 'XGBRegressor'
-    preprocessing_options:
-      transformations: [null, 'yeo-johnson']
-      differentiation: [0]
-    forecasting_parameters:
-      type: 'ForecasterDirect'
-      lags_grid: 
-        - [1, 6]
-        - [1, 2, 3, 6]
-        - [1, 2, 3, 6, 12, 13]
-    exogenous_features:
-      features_to_use: [] # Solo variable objetivo
-    advance_criteria:
-      top_n: 5
-
-  # PASO 4: Calendario + Diferenciación (Top 2)
-  - name: 'run_02_calendar_and_diff'
-    enabled: true
-    window_features:
-      enabled: true
-      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
-      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
-    description: 'Torneo Fase 2: Aplicación de variables calendario y prueba de diferenciación sobre el Top 5. Selección del Top 2.'
-    exogenous_features:
-      features_to_use: 
-        - 'month_sin'
-        - 'month_cos'
-        - 'quarter_sin'
-        - 'quarter_cos'
-        - 'semester_sin'
-        - 'semester_cos'
-        - 'days_in_month'
-        - 'weekend_days_count'
-        - 'holidays_count'
-    preprocessing_options:
-      differentiation: [0, 1]
-    advance_criteria:
-      top_n: 2
-
-  # PASO 5: Incremento Progresivo de Variables (Para los 2 Finalistas)
-  - name: 'run_03_social_media'
-    enabled: true
-    window_features:
-      enabled: true
-      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
-      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
-    description: 'Torneo Fase 3: Adición de inversión en Redes Sociales (Facebook/Instagram).'
-    exogenous_features:
-      features_to_use: ['inversion_facebook', 'inversion_instagram']
-
-  - name: 'run_04_macroeconomics'
-    enabled: true
-    window_features:
-      enabled: true
-      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
-      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
-    description: 'Torneo Fase 4: Adición de contexto macroeconómico (IPC, TRM, Desempleo, etc.).'
-    exogenous_features:
-      features_to_use: 
-        - 'ipc_mensual'
-        - 'confianza_consumidor'
-        - 'trm_promedio'
-        - 'tasa_desempleo'
-        - 'costo_insumos_index'
-
-  - name: 'run_05_structural_hacks'
-    enabled: true
-    window_features:
-      enabled: true
-      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
-      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
-    description: 'Torneo Fase 5: Adición de variables de negocio y eventos estructurales.'
-    exogenous_features:
-      features_to_use: 
-        - 'is_pandemic'
-        - 'es_promo'
-        - 'novenas_intensity'
-        - 'is_bonus_month'
-        - 'time_drift_index'
-        - 'precio_unitario_full'
-        - 'costo_unitario'
-
-  # PASO 6: El Campeón (Pesos por Eras)
-  - name: 'run_final_champion'
-    enabled: true
-    window_features:
-      enabled: true
-      stats: ['mean', 'mean', 'mean', 'std', 'std', 'std', 'max', 'max', 'max']
-      window_sizes: [3, 6, 12, 3, 6, 12, 3, 6, 12]
-    description: 'Fase Final: Aplicación de Pesos por Eras al mejor modelo del torneo integral, heredando su set de variables.'
+      stats: ['mean', 'std', 'max']
+      window_sizes: [3, 6, 12]
     training_options:
       use_weights: true
       event_definitions:
@@ -503,12 +409,105 @@ experiments:
       weight_function_type: 'by_era' 
       weight_distribution:
         default: 0.5
-        fase_pre_pandemia: 0.5
-        fase_crisis_covid: 0.1
-        fase_recuperacion: 0.7
+        fase_pre_pandemia: 0.3
+        fase_crisis_covid: 0.05
+        fase_recuperacion: 0.6
         fase_retail: 1.0
+    models_to_train: ['Ridge', 'RandomForest', 'LightGBM', 'XGBRegressor']
+    preprocessing_options:
+      transformations: [null]
+      differentiation: [0]
+    forecasting_parameters:
+      type: 'ForecasterDirect'
+      lags_grid: 
+        - [1, 6]
+        - [1, 2, 3, 6, 12]
     exogenous_features:
-      features_to_use: 'inherited_from_winner'
+      features_to_use: [] 
+    advance_criteria:
+      top_n: 1
+
+  # PASO 4: Las Leyes del Mundo Físico (Reglas de Negocio)
+  - name: 'run_02_business_rules'
+    enabled: true
+    description: 'Fase 2: Inyección de leyes de negocio (Promociones, Novenas y Primas).'
+    exogenous_features:
+      features_to_use: 
+        - 'es_promo'
+        - 'novenas_intensity'
+        - 'is_bonus_month'
+    training_options:
+      use_weights: true
+      event_definitions:
+          fase_pre_pandemia: { start_date: '2018-01-01', end_date: '2020-03-31' }
+          fase_crisis_covid: { start_date: '2020-04-01', end_date: '2021-05-31' }
+          fase_recuperacion: { start_date: '2021-06-01', end_date: '2022-05-31' }
+          fase_retail:       { start_date: '2022-06-01', end_date: '2026-12-31' }
+      weight_function_type: 'by_era' 
+      weight_distribution:
+        default: 0.5
+        fase_pre_pandemia: 0.3
+        fase_crisis_covid: 0.05
+        fase_recuperacion: 0.6
+        fase_retail: 1.0
+    preprocessing_options:
+      differentiation: [0]
+    advance_criteria:
+      top_n: 1
+
+  # PASO 5: La Brújula de Temporada (Calendario Minimalista)
+  - name: 'run_03_minimal_calendar'
+    enabled: true
+    description: 'Fase 3: Ubicación temporal básica (Mes y Festivos).'
+    exogenous_features:
+      features_to_use: 
+        - 'month_sin'
+        - 'month_cos'
+        - 'holidays_count'
+    training_options:
+      use_weights: true
+      event_definitions:
+          fase_pre_pandemia: { start_date: '2018-01-01', end_date: '2020-03-31' }
+          fase_crisis_covid: { start_date: '2020-04-01', end_date: '2021-05-31' }
+          fase_recuperacion: { start_date: '2021-06-01', end_date: '2022-05-31' }
+          fase_retail:       { start_date: '2022-06-01', end_date: '2026-12-31' }
+      weight_function_type: 'by_era' 
+      weight_distribution:
+        default: 0.5
+        fase_pre_pandemia: 0.3
+        fase_crisis_covid: 0.05
+        fase_recuperacion: 0.6
+        fase_retail: 1.0
+    advance_criteria:
+      top_n: 1
+
+  # PASO 6: El Impacto en el Bolsillo (Variables de Shock)
+  - name: 'run_04_external_shock'
+    enabled: true
+    description: 'Fase 4: Evaluación de variables externas críticas (Confianza y Precio).'
+    exogenous_features:
+      features_to_use: 
+        - 'confianza_consumidor'
+        - 'precio_unitario_full'
+    training_options:
+      use_weights: true
+      event_definitions:
+          fase_pre_pandemia: { start_date: '2018-01-01', end_date: '2020-03-31' }
+          fase_crisis_covid: { start_date: '2020-04-01', end_date: '2021-05-31' }
+          fase_recuperacion: { start_date: '2021-06-01', end_date: '2022-05-31' }
+          fase_retail:       { start_date: '2022-06-01', end_date: '2026-12-31' }
+      weight_function_type: 'by_era' 
+      weight_distribution:
+        default: 0.5
+        fase_pre_pandemia: 0.3
+        fase_crisis_covid: 0.05
+        fase_recuperacion: 0.6
+        fase_retail: 1.0
+    advance_criteria:
+      top_n: 1
+
+
+
 
 # ==============================================================================
 # 9. Parámetros de INFERENCIA Y DESPLIEGUE
